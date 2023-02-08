@@ -1,24 +1,63 @@
-#script to analyse the genomes of P. aeruginosa for unknown gene content
-#goal is to produce a graph which shows % of unknown genes
-#uses conda environment "orf_prediction"
+#!/bin/bash
 
-#setup what I am running on 
-org="PA01"
-dir="../data/geneomes/"
+#######################################################
+# help
+#######################################################
 
-#find geneome file
-genome=$(find ${dir}${org} -type f -name "*_genomic.fna")
-echo ${genome}
+Help()
+{
+  # Display Help
+  echo "Add description of the script functions here."
+  echo
+  echo "Syntax: scriptTemplate [-g|h|v|V]"
+  echo "options:"
+  echo "g     Print the GPL license notification."
+  echo "h     Print this Help."
+  echo "v     Verbose mode."
+  echo "V     Print software version and exit."
+  echo
+}
+
+#####################################################
+# main program 
+#####################################################
+#####################################################
+
+# process input optios
+# Get the options
+while getopts ":hf:" option;
+do
+  case $option in
+    h) # display Help
+      Help
+      exit;;
+    f) # Enter a file to run on
+       file=$OPTARG;; 
+   \?) #Invalid options
+      echo "Error: Invalid option"
+      exit;;
+  esac
+done
+
+###################################################
+# Main Program
+###################################################
+#echo genome
+echo "I am running on ${file}"
 
 #get accession number
-tmp=${genome%_genomic.*}
+tmp=${file%_genomic.*}
 accession=${tmp##*/}
+echo "accession is ${accession}"
 
-#make protein output filename
-gene_out=${dir}${org}/${accession}_genes.fna
+#get directory to save outputs too
+dir=${file%/*}
 
-#make genome output filename
-prot_out=${dir}${org}/${accession}_proteins.faa
+#run prokka
+prokka --outdir ${dir}prokka --prefix ${accession} ${file} 
 
-#run prodigal to predict genes and proteins
-prodigal -i $genome -o $gene_out -a $prot_out
+
+
+
+
+
