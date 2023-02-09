@@ -2,14 +2,21 @@
 #dependencies
 library(tidyverse)
 
-#get file
-file <- "./data/GCF_000006765.1_ASM676v1.tsv"
+# options
+args = commandArgs(trailingOnly = TRUE)
+print(args)
+
+#accesion 
+acc <- args[1]
+#get directory
+dir <- args[2]
 
 #load in
-gene_data <- read.table(file = file,
+gene_data <- read.table(file   = paste0(dir, "/prokka/", acc, ".tsv"), 
                         header = TRUE,
-                        sep = "\t",
-                        quote = "")
+                        sep    = "\t",
+                        quote  = "")
+
 
 #process for plotting
 gene_freq_data <- gene_data %>%
@@ -25,42 +32,11 @@ gene_freq_data <- gene_data %>%
   pivot_longer(cols = -classification,
                names_to = "metric",
                values_to = "value")
-  
-head(gene_freq_data)
 
-#plot
-gene_freq_plot <- ggplot(data = gene_freq_data,
-                         mapping = aes(x = "",
-                                       y = value,
-                                       fill = classification)) +
-  geom_col() +
-  facet_wrap(facets = vars(metric),
-             scale  = "free") +
-  theme_bw()
-
-gene_freq_plot
-
-#lets see what the unannotated proteins are 
-unkn_freq_data <- gene_data %>%
-  mutate(classification = ifelse(test = grepl(pattern = "hypothetical|putative",
-                                              x       = product),
-                                 yes  = "Unannotated",
-                                 no   = "Annotated")) %>%
-  filter(classification == "Unannotated") %>%
-  group_by(product) %>%
-  summarise(n = n())
-
-#plot 
-unknown_freq_plot <- ggplot(data = unkn_freq_data,
-                            mapping = aes(y = product,
-                                          x = n)) +
-  geom_col() +
-  theme_bw()
-
-unknown_freq_plot
-
-
-
+#write out table
+write.csv(x         = gene_freq_data,
+          file      = paste0("../data/", acc, "_unknown_frequency.tsv"),
+	  row.names = FALSE)
 
 
 

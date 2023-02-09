@@ -54,10 +54,7 @@ echo "accession is ${accession}"
 dir=${file%/*}
 
 #run prokka
-prokka --outdir ${dir}prokka --prefix ${accession} ${file} 
+#prokka --outdir ${dir}/prokka --prefix ${accession} ${file} 
 
-
-
-
-
-
+#run rscript to tabulate results
+Rscript 20230208_Unknown_gene_tabulation.R $accession $dir
