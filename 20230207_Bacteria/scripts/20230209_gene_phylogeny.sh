@@ -69,7 +69,8 @@ if [ "$tree" = TRUE ]
 
 fi
 
-
+# produce annotation files for iTOL
+Rscript 20230216_iTOL_annotator.R ${out}_msa.afa ${out}
 
 
 

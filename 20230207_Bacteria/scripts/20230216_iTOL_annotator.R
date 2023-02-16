@@ -1,6 +1,5 @@
 # script to produce an itol annotation file from a fasta format msa file
 # this assumes that the fasta headers conform to uniprot format https://www.uniprot.org/help/fasta-headers
-#TODO redo with DATASET_COLORSTRIP type, using dataset_color_strip_template.txt
 
 # Dependencies ----
 library(tidyverse)
@@ -160,8 +159,17 @@ gen_pal <- function(n, pie){
   return(pall_n)
 }
 
+# Options ----
+args = commandArgs(trailingOnly = TRUE)
+
+# msa file
+msa_file <- args[1]
+
+# output location
+out_loc  <- paste0(args[2], "_iTOL")
+
 # Data ----
-msa_data <- msa_to_tbbl("uniprot_matches_msa.afa")
+msa_data <- msa_to_tbbl(msa_file)
 
 # generate colour pallette
 set.seed(1)
@@ -170,7 +178,7 @@ pall_n <- gen_pal(n   = length(unique(msa_data[, "organism"])),
 
 # Make Labels file
 write_file(x    = "LABELS\nSEPARATOR SPACE\nDATA\n",
-           file = "WSC4_Labels.txt")
+           file = paste0(out_loc, "_Labels.txt"))
 
 labs <-  msa_data %>%
   replace(is.na(.), "Unknown") %>% 
@@ -178,7 +186,7 @@ labs <-  msa_data %>%
             label    = gsub(" ", "", paste(name, "_", protein)))
 
 write.table(x         = labs,
-            file      = "WSC4_Labels.txt",
+            file      = paste0(out_loc, "_Labels.txt"),
             append    = TRUE,
             sep       = " ",
             quote     = FALSE,
@@ -210,12 +218,12 @@ write_file(x    = paste("DATASET_COLORSTRIP",
                         paste0("LEGEND_SHAPES ", paste(rep(1, length(unique(annot[, "organism"]))), collapse = " ")),
                         "DATA\n",
                         sep = "\n"),
-           file = "WSC4_org_colors.txt")
+           file = paste0(out_loc, "_org_colors.txt"))
 
 
 
 write.table(x         = annot,
-            file      = "WSC4_org_colors.txt",
+            file      = paste0(out_loc, "_org_colors.txt"),
             append    = TRUE,
             sep       = " ",
             quote     = FALSE,
@@ -223,7 +231,7 @@ write.table(x         = annot,
             col.names = FALSE)
 
 # make MSA file
-msa <- readLines(con = "uniprot_matches_msa.afa")
+msa <- readLines(con = msa_file)
 
 write_file(x    = paste("DATASET_ALIGNMENT",
                         "SEPARATOR SPACE",
@@ -233,7 +241,7 @@ write_file(x    = paste("DATASET_ALIGNMENT",
                         "DATA",
                         paste(print(msa, quote = FALSE), collapse = "\n"),
                         sep ="\n"),
-           file = "WSC4_MSA.txt")
+           file = paste0(out_loc, "_MSA.txt"))
 
 
 
