@@ -1,5 +1,6 @@
 #!/bin/bash
 
+#TODO add option to build phylogenetic tree
 ###############################################
 # Help
 ###############################################
@@ -13,16 +14,21 @@ jackhmmmer, then produce a phylogentic tree of related genes"
 	echo "options:"
 	echo "  -f    file to run on"
 	echo "  -h    display this help"
-	echo "  -b    directory to build database from"
+	echo "  -b    multifasta to search -f against"
+	echo "  -o    outputs filename"
+	echo "  -t    should a phylogenetic tree be built?"
 	echo 
 }
 
 #############################################
 # Process input options
 #############################################
+# set variables
+# fasttree off by default
+tree=FALSE
 
 # Get options
-while getopts ":hf:b:" option;
+while getopts ":hf:b:o:t" option;
 do
 	case $option in
 		h) # display Help
@@ -30,8 +36,12 @@ do
 			exit;;
 		f) # file to be run on
 			file=$OPTARG;;
-		b) #directory to build hmm database from
-		  dir=$OPTARG;;
+		b) #multifasta to search in
+		  db=$OPTARG;;
+		o) #output file location
+		  out=$OPTARG;;
+		t) # should fasttree be made from msa?
+		   tree=TRUE;;
 		\?) # Invalid option
 			echo "Error: Invalid option"
 			Help
@@ -43,17 +53,24 @@ done
 # Main Program
 #############################################################
 
-#find cds files to unzip
-echo "finding and unzipping files in ${dir}"
-find $dir -type f -name *_cds_*.fna.gz -exec gzip -d -f -k {} +
-
-#concatenate them all together so jackhmmer can search something
-echo "finding file in ${dir} to build database from"
-find $dir -type f -name *_cds_*.fna -exec cat {} + > ${dir}/database.fna
-
 #run jackhmmer
 echo "running jackhmmer"
-jackhmmer -o ${dir}/jackhmmer.out -A ${dir}/jackhmmer_msa.fna $file ${dir}/database.fna
+jackhmmer -o ${out}.txt -A ${out}_msa.sto ${file} ${db}
+
+#run fasttree
+if [ "$tree" = TRUE ] 
+	then
+
+	echo "converting ${out}_msa.sto to ${out}_msa.afa"
+  esl-reformat --informat stockholm -o ${out}_msa.afa afa ${out}_msa.sto
+
+	echo "building tree from jackhmmer msa"
+	fasttree ${out}_msa.afa > ${out}.tree
+
+fi
+
+
+
 
 
 
