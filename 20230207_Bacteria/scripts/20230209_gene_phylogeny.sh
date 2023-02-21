@@ -17,6 +17,7 @@ jackhmmmer, then produce a phylogentic tree of related genes"
 	echo "  -b    multifasta to search -f against"
 	echo "  -o    outputs filename"
 	echo "  -t    should a phylogenetic tree be built?"
+	echo "  -c    number of cpu's for jackhmmer"
 	echo 
 }
 
@@ -28,7 +29,7 @@ jackhmmmer, then produce a phylogentic tree of related genes"
 tree=FALSE
 
 # Get options
-while getopts ":hf:b:o:t" option;
+while getopts ":hf:b:o:tn:c:" option;
 do
 	case $option in
 		h) # display Help
@@ -42,6 +43,8 @@ do
 		  out=$OPTARG;;
 		t) # should fasttree be made from msa?
 		   tree=TRUE;;
+		c) # number of cpus to use for jackhmmer
+		   cpu=$OPTARG;;
 		\?) # Invalid option
 			echo "Error: Invalid option"
 			Help
@@ -55,7 +58,7 @@ done
 
 #run jackhmmer
 echo "running jackhmmer"
-jackhmmer -o ${out}.txt -A ${out}_msa.sto ${file} ${db}
+jackhmmer -o ${out}.txt -A ${out}_msa.sto --cpu ${cpu} ${file} ${db}
 
 #run fasttree
 if [ "$tree" = TRUE ] 
