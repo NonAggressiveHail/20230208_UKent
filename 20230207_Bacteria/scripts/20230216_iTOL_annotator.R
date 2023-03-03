@@ -148,7 +148,7 @@ gen_pal <- function(n, pie){
   
   qual_col_pals <- brewer.pal.info[brewer.pal.info$category == 'qual',]
   big_pal       <- unlist(mapply(brewer.pal, qual_col_pals$maxcolors, rownames(qual_col_pals)))
-  pall_n        <- sample(big_pal, n)
+  pall_n        <- sample(big_pal, n, replace = TRUE) # replace = TRUE means that some species will have same colours, but prevents errors if n species > n colours
   
   if(pie){
     
@@ -193,7 +193,7 @@ write.table(x         = labs,
             row.names = FALSE,
             col.names = FALSE)
 
-
+print("Labels written")
 
 # Make organism colours file
 annot <- msa_data %>%
@@ -230,6 +230,8 @@ write.table(x         = annot,
             row.names = FALSE,
             col.names = FALSE)
 
+print("Colours file written")
+
 # make MSA file
 msa <- readLines(con = msa_file)
 
@@ -243,7 +245,7 @@ write_file(x    = paste("DATASET_ALIGNMENT",
                         sep ="\n"),
            file = paste0(out_loc, "_MSA.txt"))
 
-
+print("MSA file written")
 
 
 
