@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#TODO add option to build phylogenetic tree
+#TODO change to using FastTree MP for multithreading
 ###############################################
 # Help
 ###############################################
@@ -18,6 +18,7 @@ jackhmmmer, then produce a phylogentic tree of related genes"
 	echo "  -o    outputs filename"
 	echo "  -t    should a phylogenetic tree be built?"
 	echo "  -c    number of cpu's for jackhmmer"
+	echo "  -e    e-value for jackhmmer cutoff"
 	echo 
 }
 
@@ -27,9 +28,11 @@ jackhmmmer, then produce a phylogentic tree of related genes"
 # set variables
 # fasttree off by default
 tree=FALSE
+# default jackhmmer e-value
+e_value=10
 
 # Get options
-while getopts ":hf:b:o:tn:c:" option;
+while getopts ":hf:b:o:tn:c:e:" option;
 do
 	case $option in
 		h) # display Help
@@ -45,6 +48,8 @@ do
 		   tree=TRUE;;
 		c) # number of cpus to use for jackhmmer
 		   cpu=$OPTARG;;
+		e) # e-value for jackhmmer
+		   e_value=$OPTARG;;
 		\?) # Invalid option
 			echo "Error: Invalid option"
 			Help
@@ -58,24 +63,26 @@ done
 
 #run jackhmmer
 echo "running jackhmmer"
-jackhmmer -o ${out}.txt -A ${out}_msa.sto --cpu ${cpu} ${file} ${db}
+jackhmmer -o ${out}.txt -A ${out}_msa.sto -E $e_value --cpu ${cpu} ${file} ${db}
 
 #run fasttree
 if [ "$tree" = TRUE ] 
 	then
 
 	echo "converting ${out}_msa.sto to ${out}_msa.afa"
-  esl-reformat --informat stockholm -o ${out}_msa.afa afa ${out}_msa.sto
+  	esl-reformat --informat stockholm -o ${out}_msa.afa afa ${out}_msa.sto
 
 	echo "building tree from jackhmmer msa"
-	fasttree ${out}_msa.afa > ${out}.tree
+	#fasttree ${out}_msa.afa > ${out}.tree
+	FastTreeMP -fastest ${out}_msa.afa > ${out}.tree
 
 fi
 
 # produce annotation files for iTOL
+echo "Making iTOL annotations"
 Rscript 20230216_iTOL_annotator.R ${out}_msa.afa ${out}
 
-
+echo "Script complete!"
 
 
 
