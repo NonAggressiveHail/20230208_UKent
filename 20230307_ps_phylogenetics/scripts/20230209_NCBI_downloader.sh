@@ -25,7 +25,7 @@ Help()
 #################################
 # Setup
 #################################
-links_file="./tmp_ftp_links.txt"
+links_file="tmp_ftp_links.txt"
 
 
 #################################
@@ -55,11 +55,9 @@ done
 ###############################
 # Main Program
 ###############################
-
-#move to download directory
+# Make download directory 
 echo "Downloading into $dir"
 mkdir -p $dir
-cd $dir
 
 #get current date for log file
 today=$(date -I | sed 's/-//g')
@@ -72,7 +70,7 @@ esearch -db assembly -query $search |
  			xtract -pattern DocumentSummary -element FtpPath_$db |
 				sed 's/^ftp//' > $links_file
 
-#confirm if we want to proceede 
+# Confirm if we want to proceede 
 count=$(cat ${links_file} | wc -l)
 
 while true
@@ -80,24 +78,23 @@ while true
 		read -p "${count} genomes found, continue? y/n: " yn
 		case $yn in 
 			[Yy]* ) # Proceede with download
-					   echo "Downloading now"
-					   break;;
+			          echo "Downloading now"
+			          break;;
 			[Nn]* ) # Abort Download
-			       echo "Aborting"
-						 rm ${links_file}
-						 rmdir ${dir}
-						 exit;;
+			          echo "Aborting"
+			          rm ${links_file}
+			          rmdir ${dir}
+			          exit;;
 			* ) #Invalid options
 			    echo "Please answer y or n"
-					exit;;
 		esac
 done
 
 #Load list of ftp links
 Links=$(cat $links_file)
 
-#load completed files
-comp_dls=$(ls .)
+# See if we have already completed files
+comp_dls=$(ls ${dir})
 
 #make header for rsync log file
 logfile=${today}_sequence_downloader_log_rep.tsv
@@ -107,14 +104,19 @@ echo -e "genome\tftp_link\ttime_downloaded\tstatus" > $logfile
 counter=1
 
 echo "starting downloading"
-for Link in $Links
+for ftp_address in $Links
 do
-
+	# Add some bits to the link so it only downloads the genomic fasta file
+	accession=${ftp_address##*/}
+	Link=${ftp_address}/${accession}_genomic.fna.gz
+	
+#	echo ""
+#	echo "ftp_address = ${ftp_address}"
+#	echo "accession   = ${accession}"
+#	echo "link        = ${Link}"
+#	echo ""
 	echo "downloading from $Link"
 
-	#get name of genome I am downloading
-	genome=${Link##*/}
-		
 	#get current time
 	t=$(date +"%T")	
 
@@ -122,11 +124,11 @@ do
 	if [[ $comp_dls =~ (^|[[:space:]])"$genome"($|[[:space:]]) ]]
 	then
 		
-		echo -e "${genome}\t${Link}\t${t}\tallready_downloaded" >> $logfile
+		echo -e "${acession}\t${Link}\t${t}\tallready_downloaded" >> $logfile
 
 	else
 		#run rsync, but also write what has failed 
-		rsync --copy-links --times --verbose --recursive "rsync${Link}" . && \
+		rsync --copy-links --times --recursive "rsync${Link}" ${dir} && \
 			echo -e "${genome}\t${Link}\t${t}\tsuccess" >> $logfile || \
 			echo -e "${genome}\t${Link}\t${t}\tfail" >> $logfile
 		
