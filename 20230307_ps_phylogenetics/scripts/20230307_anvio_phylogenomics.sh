@@ -14,6 +14,7 @@ Help()
 	echo "options:"
 	echo "  -h  display this help"
 	echo "  -g  directory genomes are in"
+	echo "  -p  pattern files have"
 	echo "  -c  do genomes need decompressing?"
 	echo "  -n  number of threads to use for parallel processing"
 	echo "  -o  directory to output results in"
@@ -33,7 +34,7 @@ decompress=FALSE
 #################################
 
 # Get Options
-while getopts ":hg:cn:o:" option;
+while getopts ":hg:p:cn:o:" option;
 do
 	case $option in
 		h) # Display help
@@ -41,6 +42,8 @@ do
 		  exit;;
 		g) # Directory genomes are in
 		  gene_dir=$OPTARG;;
+		p) # Pattern used to find files
+	          file_pattern=$OPTARG;;
 		c) # Do genomes need decompressing?
 		  decompress=TRUE;;
 		n) # Number of CPUs available
@@ -60,6 +63,7 @@ done
 # Some debugging info
 echo ""
 echo "-g = ${gene_dir}"
+echo "-p = ${file_pattern}"
 echo "-c = ${decompress}"
 echo "-n = ${n_cpu}"
 echo "-o = ${out_dir}"
@@ -79,15 +83,15 @@ fi
 
 echo ""
 
-
 # make output folders in data so I don't have to use raw_data
 n_genomes=0
-for dir in $(find $gene_dir -mindepth 1 -maxdepth 1 -type d)
+for file in $(find $gene_dir -type f -name $file_pattern)
 do
+   
+  file_name=${file##*/}
+  genome_name=${file_name%.fna*}
   
-  dirname=${dir##*/}
-
-  mkdir -p ${out_dir}genomes/${dirname}
+  mkdir -p ${out_dir}genomes/${genome_name}
  
   let n_genomes=n_genomes+1
 
@@ -95,40 +99,53 @@ done
 
 echo "made $n_genomes folders"
 
-# decompress files if needed
-if [ $decompress = TRUE ] 
-  then
-    
-    echo "Decompressing"
-
-    find $gene_dir -mindepth 1 -maxdepth 1 -type d |
-      parallel -j $n_cpu 'gzip -d {}/{/}_genomic.fna.gz'
-
-    echo "Done!"
-
-fi
-
-
 # Reformat fasta files so anvio is happy with them
-echo "Reformatting files"
-find $gene_dir -mindepth 1 -maxdepth 1 -type d | 
- eval "parallel -j $n_cpu 'anvi-script-reformat-fasta {}/{/}_genomic.fna \
-                                                 -o ${out_dir}genomes/{/}/{/}_genomic.fna \
-                                                 --simplify-names'"
+# This uses some reccomened anvio defaults
+if [ $decompress = TRUE ] 
+then
+  echo "Decompressing genomes"
+
+  find $gene_dir -type f -name $file_pattern |
+  parallel -j $n_cpu 'gzip -d {}' 
+
+  echo "Reformating files"
+  find $gene_dir -type f -name ${file_pattern%.gz} | 
+  eval "parallel -j $n_cpu 'anvi-script-reformat-fasta {} \
+                                                       -o ${out_dir}genomes/{/.}/{/.}_genomic.fna \
+                                                       --simplify-names' \
+													   --min-len 1000 \
+												   --seq-type NT"
+
+  echo "Recompressing genomes"
+
+  find $gene_dir -type f -name ${file_pattern%.gz} | 
+  parallel -j $n_cpu 'gzip {}'
+
+else
+ 
+  echo "Reformating files"
+  find $gene_dir -type f -name $file_pattern | 
+  eval "parallel -j $n_cpu 'anvi-script-reformat-fasta {} \
+                                                       -o ${out_dir}genomes/{/.}/{/.}_genomic.fna \
+                                                       --simplify-names' \
+													   --min-len 1000 \
+												   --seq-type NT"
+fi
+ 
 
 # convert files into contigs.db files as this is the format anvio wants
 echo "Converting to contigs.db files"
-find $gene_dir -mindepth 1 -maxdepth 1 -type d | 
- eval "parallel -j $n_cpu 'anvi-gen-contigs-database -f ${out_dir}genomes/{/}/{/}_genomic.fna \
-                                                     -o ${out_dir}genomes/{/}/{/}_genomic.db \
-                                                     -T 1'"
+find ${out_dir}genomes/* -type d | 
+parallel -j $n_cpu 'anvi-gen-contigs-database -f {}/{/}_genomic.fna \
+                                              -o {}/{/}_genomic.db \
+                                              -T 1'
 
 echo "Done!"
 
 # find hmms in contigs .db files
 echo "Finding hmms in contigs.db files"
-find $gene_dir -mindepth 1 -maxdepth 1 -type d | 
- eval "parallel -j $n_cpu 'anvi-run-hmms -c ${out_dir}genomes/{/}/{/}_genomic.db'"
+find ${out_dir}genomes/* -type d | 
+parallel -j $n_cpu 'anvi-run-hmms -c {}/{/}_genomic.db'
 echo "Done!"
 
 # make file which says where the genomes are (anvi'o needs this later)
@@ -137,9 +154,8 @@ echo -e "name\tcontigs_db_path" > ${out_dir}genome_storage.txt
 
 for dir in $(find ${out_dir}genomes -mindepth 1 -maxdepth 1 -type d)
 do
-
   dirname=${dir##*/}
-  name=${dirname%%.*}
+  name=$(echo $dirname | cut -d _ -f1-2)
   path=./genomes/${dirname}/${dirname}_genomic.db
   line="${name}\\t${path}"
 
@@ -148,12 +164,14 @@ do
 done
 
 # Get and concattenate the genes which are shared by all bacteria
-echo "Getting sequences for all shared hmms, you may want to change this depending on you question"
+echo "getting sequences for all ribosomal proteins in the Bacteria_71 gene set"
+echo "this is what the anvio guys use on their website but may need optimising"
+echo "for example, you may want to get SCGs if genomes are closely related"
 
 anvi-get-sequences-for-hmm-hits --external-genomes ${out_dir}genome_storage.txt \
                                 -o ${out_dir}concatenated_proteins.faa \
                                 --hmm-source Bacteria_71 \
-                                --gene-names Ribosomal_L1,Ribosomal_L2,Ribosomal_L3,Ribosomal_L4,Ribosomal_L5,Ribosomal_L6 \
+                                --gene-names ../raw_data/ribosomal_gene_names.txt \
                                 --return-best-hit \
                                 --get-aa-sequences \
                                 --concatenate \
@@ -164,7 +182,27 @@ echo "Making phylogenetic tree..."
 anvi-gen-phylogenomic-tree -f ${out_dir}concatenated_proteins.faa \
                            -o ${out_dir}phylogenomic_tree.tree
 
-echo "Done!"
+# Make an annotation file for all the genomes
+echo "Making geneome tree annotations file"
+echo -e "genome_id\tgenome" > ${out_dir}tree_annotations.txt
 
+for dir in $(find ${out_dir}genomes -mindepth 1 -maxdepth 1 -type d)
+do
  
+  dirname=${dir##*/}
+  name=$(echo $dirname | cut -d _ -f1-2)
+  line="${name}\\t${name}"
+
+  echo -e $line >> ${out_dir}tree_annotations.txt
+done
+
+echo ""
+echo "Done!"
+echo ""
+echo "Tree can be viewed with anvi-interactive -p ${out_dir}phylogenomic-profile.db  --manual"
+echo "                                         -t ${out_dir}phylogenomic_tree.tree"
+echo "                                         -d ${out_dir}tree_annotations.txt"
+echo "                                         --title mytitle"
+echo "                                         --server-only"
+echo "                                         --manual"
 

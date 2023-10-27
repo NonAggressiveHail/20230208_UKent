@@ -58,27 +58,27 @@ done
 # Main Program
 ###############################
 # make output folders in data so I don't have to use raw_data
-#for dir in $(find $gene_dir -mindepth 1 -maxdepth 1 -type d)
-#do
+for dir in $(find $gene_dir -mindepth 1 -maxdepth 1 -type d)
+do
 
-#  dirname=${dir##*/}
-#  mkdir -p ${out_dir}genomes/${dirname}
+  dirname=${dir##*/}
+  mkdir -p ${out_dir}genomes/${dirname}
 
-#done
+done
 
 
 # decompress files if needed
-#if [ decompress = TRUE ] 
-#  then
+if [ decompress = TRUE ] 
+  then
     
-#    echo "Decompressing"
+    echo "Decompressing"
 
-#    find $gene_dir -mindepth 1 -maxdepth 1 -type d |
-#      parallel -j $n_cpu 'gzip -d {}/{/}_genomic.fna.gz'
+    find $gene_dir -mindepth 1 -maxdepth 1 -type d |
+      parallel -j $n_cpu 'gzip -d {}/{/}_genomic.fna.gz'
 
-#    echo "Done!"
+    echo "Done!"
 
-#fi
+fi
 
 
 # Reformat fasta files so anvio is happy with them
