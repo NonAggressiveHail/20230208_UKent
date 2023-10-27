@@ -1,0 +1,11 @@
+# slurm submission files
+*.slurm
+
+# log files
+*.log
+*.out
+*.err
+*.csv
+
+# R stuff
+*.Rhistory
