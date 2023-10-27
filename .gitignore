@@ -9,3 +9,9 @@
 
 # R stuff
 *.Rhistory
+
+# Folders I dont want
+*bioinformatics_club*
+*data*
+*raw_data*
+*programs*
