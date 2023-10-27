@@ -1,0 +1,206 @@
+20230907 
+
+Pseudomonas_aeruginosa_isolate_MINF_3A_sc_2280432_17341 protein does not exist
+Pseudomonas_aeruginosa_isolate_MINF_7A_sc_2280434_17336 protein does not exist
+Pseudomonas_aeruginosa_isolate_paerg000_11157 protein does not exist
+Pseudomonas_aeruginosa_isolate_paerg002_11158 protein does not exist
+Pseudomonas_aeruginosa_isolate_paerg003_11160 protein does not exist
+Pseudomonas_aeruginosa_isolate_paerg004_11159 protein does not exist
+Pseudomonas_aeruginosa_isolate_paerg005_11161 protein does not exist
+Pseudomonas_aeruginosa_isolate_paerg009_11162 protein does not exist
+Pseudomonas_aeruginosa_isolate_paerg010_11163 protein does not exist
+Pseudomonas_aeruginosa_isolate_paerg011_11164 protein does not exist
+Pseudomonas_aeruginosa_isolate_paerg012_11165 protein does not exist
+Pseudomonas_aeruginosa_NCTC10728_11169 protein does not exist
+Pseudomonas_aeruginosa_NCTC11445_11166 protein does not exist
+Pseudomonas_aeruginosa_NCTC12903_11167 protein does not exist
+Pseudomonas_aeruginosa_NCTC13359_11326 protein does not exist
+Pseudomonas_aeruginosa_NCTC13618_11327 protein does not exist
+Pseudomonas_aeruginosa_NCTC13620_12150 protein does not exist
+Pseudomonas_aeruginosa_NCTC13715_11168 protein does not exist
+Pseudomonas_aeruginosa_S_1_16286 protein does not exist
+
+Pseudomonas_aeruginosa_isolate_MINF_3A_sc_2280432_17341 <- contig names too long
+
+Prokka gernerated the contig name whislt runnin. PArt of it is the --locustag
+In my prokka script these are the filenames. I've replaces all instances of Pseudomonas_aeruginosa_ 
+with Pa_ (using rename 'Pseudomonas_aeruginosa_' 'Pa_' Pseudomonas_aeruginosa_*) to shorten this.
+also set --centre X as prokka log file reccomends
+
+also reomved "refseq|" from all contig names
+
+blasted proteins of interest against themselves to see how many matches I have and if each match matches itself
+some of the proteins of interest have a "," in their name, which has messed up the formatting of the self-blast output file
+removing these an rerunning has worked
+
+decided to make new VFDB metadata with the VFG column in 
+
+analysing self blast results showd that 6 sequences did not match themselves! 
+"BAC001"         "BAC207"         "EntV"           "NP_251089.1 "   "WP_014718822.1" "NP_251085.1 " 
+TODO inspect these manually!
+
+20230911
+
+after re-running prokka:
+mng_Paeruginosarespiratoryisolate not translated
+Pa_SCAID_PLC1_2021_16_222_16390 not translated
+Pa_SCAID_WND1_2021_9_195_16388 not translated
+Pa_isolate_early_isolate_NN2_clone_C_6774 not translated
+Pa_PartH_Paeruginosa_RM8376_17084 not translated
+Pa_PcyII_40_isolate_PcyII_40_17328 not translated
+Pa_isolate_MINF_7A_sc_2280434_17336 not translated
+Pa_isolate_MINF_3A_sc_2280432_17341 not translated
+Pa_PcyII_29_isolate_PcyII_29_17327 not translated
+
+Probably as names are too long
+ran rename "Paeruginosa" "Pa" * on all genomes to try and remove some characters
+ran rename "isolate" "i" twice on all genomes to try and remove some characters
+
+20230919
+
+Ran prokka_check.sh
+Pa_NCTC10728_11169 not translated
+Pa_NCTC11445_11166 not translated
+Pa_NCTC12903_11167 not translated
+Pa_NCTC13715_11168 not translated
+
+for Pa_NCTC10728_11169 log says "Contig ID must <= 37 chars long: NZ_LR134342.1_ERS1178933SCcontig000001"
+Some of my raw genomes have the word contig in:
+
+Pa_i_paerg000_11157.fna:>NZ_LR130528.1|paerg000-contig000 Pseudomonas aeruginosa isolate paerg000 genome assembly, chromosome: 0 length=6493562;assembly=GCF_900618245.1
+Pa_i_paerg002_11158.fna:>NZ_LR130527.1|paerg002-contig000 Pseudomonas aeruginosa isolate paerg002 genome assembly, chromosome: 0 length=6451470;assembly=GCF_900618255.1
+Pa_i_paerg003_11160.fna:>NZ_LR130530.1|paerg003-contig000 Pseudomonas aeruginosa isolate paerg003 genome assembly, chromosome: 0 length=6433962;assembly=GCF_900618275.1Pa_i_paerg004_11159.fna:>NZ_LR130531.1|paerg004-contig000 Pseudomonas aeruginosa isolate paerg004 genome assembly, chromosome: 0 length=6452809;assembly=GCF_900618265.1
+Pa_i_paerg005_11161.fna:>NZ_LR130534.1|paerg005-contig000 Pseudomonas aeruginosa isolate paerg005 genome assembly, chromosome: 0 length=6931425;assembly=GCF_900618285.1
+Pa_i_paerg009_11162.fna:>NZ_LR130533.1|paerg009-contig000 Pseudomonas aeruginosa isolate paerg009 genome assembly, chromosome: 0 length=6941287;assembly=GCF_900618305.1
+Pa_i_paerg010_11163.fna:>NZ_LR130536.1|paerg010-contig000 Pseudomonas aeruginosa isolate paerg010 genome assembly, chromosome: 0 length=6433960;assembly=GCF_900618315.1
+Pa_i_paerg011_11164.fna:>NZ_LR130535.1|paerg011-contig000 Pseudomonas aeruginosa isolate paerg011 genome assembly, chromosome: 0 length=6434133;assembly=GCF_900618325.1
+Pa_i_paerg012_11165.fna:>NZ_LR130537.1|paerg012-contig000 Pseudomonas aeruginosa isolate paerg012 genome assembly, chromosome: 0 length=6434020;assembly=GCF_900618335.1
+Pa_NCTC10728_11169.fna:>NZ_LR134342.1|ERS1178933SCcontig000001 Pseudomonas aeruginosa strain NCTC10728 genome assembly, chromosome: 1 length=6363395;assembly=GCF_900637045.1
+Pa_NCTC11445_11166.fna:>NZ_LR134308.1|ERS1043809SCcontig000001 Pseudomonas aeruginosa strain NCTC11445 genome assembly, chromosome: 1 length=6766292;assembly=GCF_900636735.1
+Pa_NCTC12903_11167.fna:>NZ_LR134309.1|ERS1043811SCcontig000001 Pseudomonas aeruginosa strain NCTC12903 genome assembly, chromosome: 1 length=6839985;assembly=GCF_900636755.1
+Pa_NCTC13359_11326.fna:>NZ_LR590473.1|ERS666351SCcontig000001 Pseudomonas aeruginosa strain NCTC13359 genome assembly, chromosome: 1 length=6791490;assembly=GCF_901472545.1
+Pa_NCTC13618_11327.fna:>NZ_LR590474.1|ERS666353SCcontig000001 Pseudomonas aeruginosa strain NCTC13618 genome assembly, chromosome: 1 length=6788588;assembly=GCF_901472595.1
+Pa_NCTC13620_12150.fna:>NZ_LR590472.1|ERS666355SCcontig000001 Pseudomonas aeruginosa strain NCTC13620 genome assembly, chromosome: 1 length=6779267;assembly=GCF_901472565.1
+Pa_NCTC13715_11168.fna:>NZ_LR134330.1|ERS1110714SCcontig000001 Pseudomonas aeruginosa strain NCTC13715 genome assembly, chromosome: 1 length=6765311;assembly=GCF_900636975.1
+
+removed contig000 with sed -i "s/contig00* P/P/g" *
+ran 20230817_prokka.slurm
+ran prokka_check.sh:
+Pa_NCTC10728_11169 not translated
+Pa_NCTC11445_11166 not translated
+Pa_NCTC12903_11167 not translated
+Pa_NCTC13715_11168 not translated
+
+log says "Contig ID must <= 37 chars long: NZ_LR134342.1_ERS1178933SCcontig000001". Looks like I didn't remove the word contig
+ran sed -i "s/contig//g" *
+ran sed -i "s/C000001/C/g" *
+ran 20230817_prokka.slurm
+ran prokka_check.sh, all files completed!
+
+ran 20230821_roary.slurm
+
+submitted the following with sbatch:
+jackhmmer -o /dev/null \
+		  --tblout ../data/jackhmmer/self_test_tbl.txt \
+		  --cpu 9 \
+		  ../data/pgdb_mng_orfs/all_orfs_no_space.faa \
+	          ../data/pgdb_mng_orfs/all_orfs_no_space.faa
+
+
+20230927
+
+jachmmer submission failed due to time limit, self_test_tbl.txt was 12G so probably needs just longer
+roary submission worked with output saved in  ../data/roary_1695116691
+installed iqtree into the roary conda environment
+
+ran iqtree -s core_gene_alignment.aln --threads-max 10 -nt AUTO
+~ 5 identical sequences identified
+window this was run in hung but htop shows that it is no longer running
+
+copied all .faa files into blast testing with "find -type f -name "*.faa" -exec cat {} >> ../blast_testing/all_orfs.faa
+contains 2912646 sequences!
+grep "Pa_PAO1_107_02468" all_orfs.faa returns Pa_PAO1_107_02468 Hercynine oxygenase. So pvdO is definately there
+created blastdb with makeblastdb -in all_orfs.faa -dbtype prot -title "all_orfs"
+ran blastp -query pvdO.fasta -db ./all_orfs_blastdb/all_orfs.faa -out pvdO_v_all_orfs.csv -outfmt 10 -numthreads 10
+finished in like <10s
+grep "Pa_PAO1_107_02468" pvdO_v_all_orfs.csv returns NP_251085.1,Pa_PAO1_107_02468,100.000,284,0,0,1,284,1,284,0.0,590
+did further analysis locally in R. found some unwanted whitespace in siderophore_metadata.csv and removed it.
+Now have between 0 - 2 sequences in every genome, and 1 in PAO1_107!
+ran blastp -query proteins_of_interest.faa -db ./Pa_PAO1_107_blastdb/Pa_PAO1_107_blastdb -out proteins_of_interest_v_PAO1_107.csv -outfmt 10 -num_threads 10 -mt_mode 1
+moved proteins_of_interest_v_PAO1_107.csv locally to analyse in R
+matches found for all siderophore genes aside from pvdl, which is WP_014718822.1
+Another error in the metadata file, corrected now all siderophore genes have been found in PAO1_107!
+submitted with sbatch:
+blastp -query ../raw_data/proteins_of_interest/proteins_of_interest.faa \
+	   -db ../data/20230927_blast/all_orfs_blastdb/all_orfs.faa \
+	   -out ../data/20230927_blast/blastp_out.csv \
+	   -outfmt 10 \
+	   -num_threads ${SLURM_CPUS_PER_TASK} \
+	   -mt_mode 1
+
+
+ran jackhmmer -o pvdO_v_all_orfs.out --tblout pvdO_V_all_orfs.txt --cpu 9 pvdO.fasta all_orfs.faa
+grep "Pa_PAO1_107_02468" pvdO_V_all_orfs.txt returns "Pa_PAO1_107_02468                     -          NP_251085.1          -           2.5e-198  664.2   3.9  2.8e-198  664.0   3.9   1.0   1   0   0   1   1   1   1 Hercynine oxygenase"
+
+ran jackhmmer -o proteins_of_interest_v_PAO1_107.out --tblout proteins_of_interst_v_PAO1_107.txt --cpu 9 proteins_of_interest.faa Pa_PAO1_107.faa
+got "disconnect broken pipe" not sure if it finished so need to re-run
+
+20230929
+submitted iqtree -s ../data/roary_1695116691/core_gene_alignment.aln \
+	   --threads-max $SLURM_CPUS_PER_TASK \
+	   -nt AUTO
+
+with 36 cpus-per-task as IQtree did not finish running last time
+
+20230930
+
+both jackhmmer and IQtree failed had timeout
+re-submitted both with 48h time limit instead of 24
+
+20231003
+
+jackhmmer finished but IQtree did not
+
+re-wrote jackhmmer compiler using changes from blast compiler
+first run failed with 2 errors:
+~ Warning: In mclapply(X = jackhmmer_files, FUN = read_tblout, mc.cores = threads) :
+  scheduled cores 17, 13, 16, 7, 11, 12 encountered errors in user code, all values of the jobs will be affected
+~ Error in `select()`:
+  ! Can't subset columns that don't exist.
+  ✖ Column `gene_id` doesn't exist.
+
+Think second error is due to reading in VFDB metadata 1 instead of 2, changed to use VFDB 2
+tried to read in file 17, assuming thats what core 17 uses, and got:
+~ Error in paste0(., collapse = "\n") : result would exceed 2^31-1 bytes
+Split all files into 2 with split -n 2, made sure jackhmmer header was at the top of each, then reran jackhmmer compiler
+some of my files have different numbers of collumns for some reason when read with read_tblout
+reading in "proteins_of_interest_001_tblaa.txt" gave an error in row 410488
+decided to remove all spaces from "all_ORFS.faa" and rerun, as this will remove the "description" column
+
+
+resubmitted IQtree, its taking ages as its testing all them models
+
+20231005
+removed seperate error ouput for jackhmmer compiler so that both channels are in output file
+submitted jackhmmer compiler
+timed out after 1 hour, using 188869516K memory.
+Resubmitted with 250G memory (increased from 100G)
+
+
+20231006
+It appears IQtree has not output bootstrap values, resubmitted with:
+iqtree -s ../data/roary_1695116691/core_gene_alignment.aln \
+	   --threads-max $SLURM_CPUS_PER_TASK \
+	   -nt AUTO \
+	   -bb 1000 \
+	   -alrt 1000 \
+	   --redo-tree
+IQtree FAQs (http://www.iqtree.org/doc/Frequently-Asked-Questions) say: "One would typically start to rely on the clade if its SH-aLRT >= 80% and UFboot >= 95%"
+
+20231017
+installed seqkit into hmmer env to check for duplicate sequences in my proteins of interest
+
+
+
+
+
