@@ -18,27 +18,6 @@ threads         <- as.numeric(args[7])
 graphs          <- args[8]
 
 # Functions --------------------------------------------------------------------
-read_jackhmmer <- function(file){
-  
-  tmp_file   <- readLines(con = file)[-c(1:4)]
-  
-  raw_jackhmmer_data <- read.delim(file   = textConnection(tmp_file),
-                                   quote  = "",
-                                   sep    = "",
-                                   header = FALSE)
-  
-  colnames(raw_jackhmmer_data) <- c("domain_name", "accession_1", "query_name", "accession_2",
-                                    "sequence_evalue", "seq_score", "seq_bias",
-                                    "dom_E_value", "dom_score", "dom_bias",
-                                    "exp", "reg", "clu",  "ov", 
-                                    "env", "dom", "rep", "inc", "description_of_target")
-  output <- raw_jackhmmer_data %>%
-    select(domain_name, query_name, sequence_evalue)
-  
-  return(output)
-  
-}
-
 partial_join <- function(x, y, by_x, pattern_y){
   
   idx_x <- sapply(y[[pattern_y]], grep, x[[by_x]])
@@ -70,8 +49,40 @@ string_extract <- function(str, split, pattern){
   
 }
 
+# Build metadata ---------------------------------------------------------------
+print(paste0(Sys.time(), ": Loading Metadata..."))
 
-# Load Data --------------------------------------------------------------------
+# Load in protein metadata
+VFDB_meta_trim <-  read.csv(file = VFDB_meta) %>%
+  select(gene_id, VFID, VFCID, VF_Name, VFcategory ) %>%
+  transmute(gene_id        = gene_id,
+            factor_id      = VFID,
+            factor_id_name = VF_Name,
+            factor_category = VFCID,
+            factor_category_name = VFcategory,
+            type           = "Virulence_Factor")
+
+bacti_meta_trim <- read.csv(file = bact_meta) %>%
+  select(id, Name, Class) %>%
+  transmute(gene_id   = id,
+            factor_id = id,
+            factor_id_name = Name,
+            factor_category = ifelse(is.na(Class), "Unknown", Class),
+            factor_category_name = ifelse(is.na(Class), "Unknown", Class),
+            type     = "Bacteriocin")
+
+sidero_meta_trim <-  read.csv(file = side_meta) %>%
+  select(Protein.Referenece, Gene.name) %>%
+  transmute(gene_id       = Protein.Referenece,
+            factor_id     = Protein.Referenece,
+            factor_id_name  = Gene.name,
+            factor_category = Gene.name,
+            factor_category_name = Gene.name,
+            type     = "Siderophore_Biosynthesis")
+
+all_meta_trim <- do.call(rbind, list(VFDB_meta_trim, bacti_meta_trim, sidero_meta_trim))
+
+# Load Jackhmmer Data ----------------------------------------------------------
 print(paste0(Sys.time(), ": Args are:"))
 print(args)
 print("")
@@ -81,10 +92,10 @@ numcores <- detectCores()
 
 print(paste0("Finding files in ", jackhmmer_dir))
 
-full_names      <- read.csv(file = full_names_file)
+target_organisms      <- read.csv(file = full_names_file)
 
 jackhmmer_files <- list.files(path       = jackhmmer_dir,
-                              pattern    = "*.txt",
+                              pattern    = "*_tbl.txt",
                               full.names = TRUE)
 
 print(paste0(Sys.time(), ": Found ", length(jackhmmer_files), " files"))
@@ -106,8 +117,6 @@ if(file.exists(paste0(out_dir, "/",  "compiled_jackhmmer_data.csv"))){
   raw_jackhmmer_data <- mclapply(X        = jackhmmer_files,
                                  FUN      = read_tblout,
                                  mc.cores = threads)
-  
-  str(raw_jackhmmer_data)
   
   compiled_jackhmmer_data <- do.call(rbind, raw_jackhmmer_data) %>%
     select(domain_name, query_name, sequence_evalue)
@@ -132,44 +141,44 @@ sig_jackhmmer_hits <- compiled_jackhmmer_data %>%
 print(paste0(Sys.time(), ": ", nrow(compiled_jackhmmer_data) - nrow(sig_jackhmmer_hits), " were not significant"))
 
 
-# Convert names
+# Convert names and remove duplicated data
 jackhmmer_data <- sig_jackhmmer_hits %>%
-  mutate(target_organism = sub("_[^_]+$", "", domain_name),
-         target_gene     = sub(".*_", "", domain_name)) %>%
-  mutate(query_id = ifelse(test = grepl("^VFG", query_name),
-                           yes  = sub("\\(.*", "", query_name),
-                           no   = sub("\\~.*", "", query_name)))
-if(FALSE){
-  # Need to do this partial join shenannigans to convert genome names to what I usually use
-  print(paste0(Sys.time(), ": Converting names..."))
-  jackhmmer_names <- compiled_jackhmmer_data %>%
-    select(domain_name) %>%
-    distinct()
-  
-  
-  names_conversion <- mclapply(X         = split(jackhmmer_names, 1:threads),
-                               FUN       = partial_join,
-                               y         = full_names,
-                               by_x      = "domain_name",
-                               pattern_y = "full_name",
-                               mc.cores  = threads)
-  
-  # Convet names and convert query_name to query ID for later matching to metadata
-  jackhmmer_data <- sig_jackhmmer_hits %>%
-    left_join(do.call(rbind, names_conversion),
-              by = "domain_name") %>%
-    mutate(query_id = ifelse(test = grepl("^VFG", query_name),
-                             yes  = string_extract(query_name, "~", "VF[0-9]"),
-                             no   = ifelse(test = grepl("^BAC", query_name),
-                                           yes  = string_extract(query_name, "~", "^BAC"),
-                                           no   = ifelse(test = grepl("^NP", query_name),
-                                                         yes  = string_extract(query_name, "~", "^NP"),
-                                                         no   = "Unknown"))),
-           query_id = gsub("\\(", "", query_id),
-           query_id = gsub("\\)", "", query_id))
-  
-  print(paste0(Sys.time(), ": Done!"))
-}
+  mutate(target_organism = sub("_[^_]+$", "", domain_name),                # exract the target PA strain
+         target_gene     = sub(".*_", "", domain_name)) %>%                # extract the locus in that strain
+  mutate(query_gene = ifelse(test = grepl("^VFG", query_name),
+                             yes  = sub("\\(.*", "", query_name),
+                             no   = sub("\\~.*", "", query_name))) %>%                         # Tidy the ID number up
+  group_by(target_organism, target_gene) %>%
+  filter(sequence_evalue == min(sequence_evalue)) %>%                      # Only keep the sequences with the lowest e_value
+  reframe(query_gene     = query_gene,
+          hits_for_locus = n()) %>%                                        # Calculate how many total queries hit that locus
+  group_by(target_organism, target_gene, query_gene)  %>%                 
+  reframe(hits_for_locus  = hits_for_locus,
+          match_quality   = n()/hits_for_locus * 100) %>%                  # Calculate the number of times each query hit
+  group_by(target_organism, target_gene) %>%
+  filter(match_quality == max(match_quality)) %>%
+  left_join(all_meta_trim,
+            by = c("query_gene" = "gene_id")) %>%
+  group_by(target_organism, target_gene) %>%
+  reframe(target_organism = target_organism,
+          target_gene     = target_gene,
+          hits_for_locus  = hits_for_locus,
+          query_gene = ifelse(length(unique(query_gene)) == 1,
+                              query_gene,
+                              "Unclear"),
+          factor_id = ifelse(length(unique(factor_id)) == 1,
+                             factor_id,
+                             "Unclear"),
+          factor_id_name = ifelse(length(unique(factor_id_name)) == 1,
+                                  factor_id_name,
+                                  "Unclear"),
+          factor_category = ifelse(length(unique(factor_category)) == 1,
+                                   factor_category,
+                                   "Unclear"),
+          factor_category_name = ifelse(length(unique(factor_category_name)) == 1,
+                                        factor_category_name,
+                                        "Unclear")) %>%
+  distinct()
 
 # Write out compiled table
 print(paste0(Sys.time(), ": Writing out compiled data with correct names to ", out_dir, "/", "compiled_jackhmmer_data_corrected_names.csv"))
@@ -182,45 +191,7 @@ print(paste0(Sys.time(), ": Done!"))
 rm("raw_jackhmmer_data")
 gc()
 
-# Build metadata ---------------------------------------------------------------
-print(paste0(Sys.time(), ": Loading Metadata..."))
-
-# Load in protein metadata
-VFDB_meta_trim <-  read.csv(file = VFDB_meta) %>%
-  select(gene_id, VF_Name) %>%
-  transmute(id       = gene_id,
-            category = VF_Name,
-            type     = "Virulence_Factor")
-
-bacti_meta_trim <- read.csv(file = bact_meta) %>%
-  select(id, Class) %>%
-  transmute(id       = id,
-            category = ifelse(is.na(Class), "Unknown", Class),
-            type     = "Bacteriocin")
-
-sidero_meta_trim <-  read.csv(file = side_meta) %>%
-  select(Protein.Referenece, Gene.name) %>%
-  transmute(id       = Protein.Referenece,
-            category = Gene.name,
-            type     = "Siderophore_Biosynthesis")
-
-all_meta_trim <- do.call(rbind, list(VFDB_meta_trim, bacti_meta_trim, sidero_meta_trim))
-
-# Make table of all protein:genome combinations
-temp_function <- function(x){
-  
-  output <- all_meta_trim %>%
-    mutate(bacteria = x)
-  
-  return(output)
-}
-
-tmp_full_table <- mclapply(X        = as.list(unique(jackhmmer_data$target_organism)),
-                           FUN      = temp_function,
-                           mc.cores = threads)
-
-full_table <- do.call(rbind, tmp_full_table)
-
+stop()
 # Get mean counts of each gene per genome --------------------------------------
 print(paste0(Sys.time(), ": Calculating counts of each gene category per genome"))
 
@@ -253,7 +224,7 @@ write.csv(x         = per_genome_mean_counts,
           row.names = FALSE)
 
 print(paste0(Sys.time(), ": Done!"))
-if(graphs){
+
 # Plot results
 ## Calculate order of labels
 label_order <- per_genome_mean_counts %>%
@@ -264,37 +235,6 @@ label_order <- per_genome_mean_counts %>%
 
 per_genome_mean_counts[, "label"] <- factor(per_genome_mean_counts$label, levels = label_order)
 
-# Counts of things in PAO1
-PAO1_graph <- ggplot(data = per_genome_mean_counts %>%
-                       filter(target_organism == "Pa_PAO1_107"),
-                     mapping = aes(x = label,
-                                   y = count)) +
-  geom_col()+
-  labs(title = "Genes in PAO1") +
-  scale_x_discrete(name = "") +
-  scale_y_continuous(name = "Count\n") +
-  facet_wrap(facets = vars(type),
-             scales = "free",
-             nrow   = 3,
-             ncol   = 1) +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle = 90,
-                                   hjust = 1,
-                                   vjust = 0.5,
-                                   size  = 5),
-        plot.title = element_text(hjust = 0.5),
-        legend.position = "bottom")
-
-ggsave(filename = paste0(date, "_", "PAO1_count_graph.png"),
-       plot     = PAO1_graph,
-       path     = paste0(out_dir, "/graphs"),
-       width    = 130.6,
-       height   = 130.6/2,
-       units    = "cm",
-       limitsize = FALSE)
-
-
-
 # Plot each type separately
 for(type in unique(per_genome_mean_counts$type)){
   
@@ -303,7 +243,7 @@ for(type in unique(per_genome_mean_counts$type)){
   n_genes <- length(unique(unlist(per_genome_mean_counts[per_genome_mean_counts$type == type, "label"])))
   
   plot_height <- 15
-  plot_width  <- 50
+  # plot_width  <- n_genes*0.2
   
   if(plot_width <= plot_height){
     
@@ -338,14 +278,42 @@ for(type in unique(per_genome_mean_counts$type)){
   ggsave(filename = paste0(date, "_", type, "_", "count_graph.png"),
          plot     = gene_count_graph,
          path     = paste0(out_dir, "/graphs"),
-         width    = plot_width,
+         width    = 50,
          height   = plot_height,
          units    = "cm",
          limitsize = FALSE)
   
   print(paste0(Sys.time(), ": Done!"))
 }
-}
+
+# Counts of things in PAO1
+PAO1_graph <- ggplot(data = per_genome_mean_counts %>%
+                       filter(target_organism == "Pa_PAO1_107"),
+                     mapping = aes(x = label,
+                                   y = count)) +
+  geom_col()+
+  labs(title = "Genes in PAO1") +
+  scale_x_discrete(name = "") +
+  scale_y_continuous(name = "Count\n") +
+  facet_wrap(facets = vars(type),
+             scales = "free",
+             nrow   = 3,
+             ncol   = 1) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90,
+                                   hjust = 1,
+                                   vjust = 0.5,
+                                   size  = 5),
+        plot.title = element_text(hjust = 0.5),
+        legend.position = "bottom")
+
+ggsave(filename = paste0(date, "_", "PAO1_count_graph.png"),
+       plot     = PAO1_graph,
+       path     = paste0(out_dir, "/graphs"),
+       width    = 130.6,
+       height   = 130.6/2,
+       units    = "cm",
+       limitsize = FALSE)
 
 rm(per_genome_mean_counts)
 gc()
@@ -416,3 +384,4 @@ write.csv(file = paste0(out_dir, "/", date, "_skew_data.csv"),
           row.names = FALSE)
 
 print(paste0(Sys.time(), ": Script complete!"))
+
