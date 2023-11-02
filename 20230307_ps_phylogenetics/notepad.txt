@@ -200,7 +200,18 @@ IQtree FAQs (http://www.iqtree.org/doc/Frequently-Asked-Questions) say: "One wou
 20231017
 installed seqkit into hmmer env to check for duplicate sequences in my proteins of interest
 
+20231027
+Found "Pa_i_P33_15915_06546~Type~IV~secretion~system~putative~outer~membrane~lipoprotein/BS1330" as a target organism
+in my "compiled_jackhmmer_data_corrected_names"
+Ran grep Pa_i_P33_15915 compiled_jackhmmer_data.csv > Pa_i_P33_15915_jackhmmer_data.csv to troubleshoot locally
+this target locus had an _ at the end which messed up my regular expressions for extracting the names
 
+re-started using github by periodically pushing and renaming my different vesion of files
+had to delete large files I accidentally added before with:
+git filter-branch --force --index-filter 'git rm --cached --ignore-unmatch 20230207_proteins/raw_data/*' --prune-empty --tag-name-filter cat -- --all etc
 
-
-
+20231102
+ran "wget https://github.com/wanyuac/BINF_toolkit/archive/refs/heads/master.zip" to get a script which converts gbk format to a table
+I need to do this to convert my prokka gbk output files to a table, so I can find where my siderophore genes are 
+found that prokka .gbk files have an incorrect header line, "length_" needs replacing with "length "
+realised that the .gff file actually has the info I need, thanks chatgpt!

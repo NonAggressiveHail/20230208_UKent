@@ -9,13 +9,17 @@ library(rhmmer)
 args = commandArgs(trailingOnly = TRUE)
 
 jackhmmer_dir   <- args[1]
-out_dir         <- args[2]
-side_meta       <- args[3]
-VFDB_meta       <- args[4]
-bact_meta       <- args[5]
-full_names_file <- args[6]
-threads         <- as.numeric(args[7])
-graphs          <- args[8]
+gff_dir         <- args[2]
+out_dir         <- args[3]
+side_meta       <- args[4]
+VFDB_meta       <- args[5]
+bact_meta       <- args[6]
+full_names_file <- args[7]
+threads         <- as.numeric(args[8])
+
+writeLines(paste0(Sys.time(), ": Args are:"))
+writeLines(args)
+writeLines("")
 
 # Functions --------------------------------------------------------------------
 partial_join <- function(x, y, by_x, pattern_y){
@@ -47,6 +51,32 @@ string_extract <- function(str, split, pattern){
   
   return(string_output)
   
+}
+
+read_gff <- function(x){
+  
+  # Load file 
+  temp_file <- readLines(x)
+  
+  # Find line the fasta info starts at 
+  fasta_line <- grep("^##FASTA$", temp_file)
+  
+  # Select text before the fasta line
+  drop_fasta <- temp_file[1:fasta_line]
+  
+  # Drop remaining lines with ## in them
+  drop_header <- drop_fasta[!grepl("^##", drop_fasta)]
+  
+  output <- read.delim(file   = textConnection(drop_header),
+                       header = FALSE)
+  
+  colnames(output) <- c("seqname", "source", "type",
+                        "start", "end", "score", "strand",
+                        "phase", "attributes")
+  
+  output[, "file"] <- x
+  
+  return(output)
 }
 
 # Build metadata ---------------------------------------------------------------
@@ -82,11 +112,33 @@ sidero_meta_trim <-  read.csv(file = side_meta) %>%
 
 all_meta_trim <- do.call(rbind, list(VFDB_meta_trim, bacti_meta_trim, sidero_meta_trim))
 
-# Load Jackhmmer Data ----------------------------------------------------------
-writeLines(paste0(Sys.time(), ": Args are:"))
-writeLines(args)
-writeLines("")
+# Load gff files for loci co-ordinates -----------------------------------------
+writeLines(paste0(Sys.time(), ": Loading gff files..."))
 
+gff_files <- list.files(path       = gff_dir,
+                        pattern    = ".gff",
+                        full.names = TRUE,
+                        recursive  = TRUE)
+
+
+writeLines(paste0(Sys.time(), ": ", length(gff_files), " gff files found"))
+
+raw_gff_data <- mclapply(X        = as.list(gff_files),
+                         FUN      = read_gff,
+                         mc.cores = threads)
+
+
+compiled_gff_data <- do.call(rbind, raw_gff_data) %>%
+  filter(type == "CDS") %>%
+  mutate(organism = basename(dirname(file)),
+         locus    = gsub(".*_(\\d+);.*", "\\1", attributes)) %>%
+  select(organism, locus, start, end)
+
+
+rm(raw_gff_data, gff_files)
+gc()
+
+# Load Jackhmmer Data ----------------------------------------------------------
 date     <- gsub("-", "", Sys.Date())
 numcores <- detectCores()
 
@@ -140,23 +192,25 @@ sig_jackhmmer_hits <- compiled_jackhmmer_data %>%
 
 writeLines(paste0(Sys.time(), ": ", nrow(compiled_jackhmmer_data) - nrow(sig_jackhmmer_hits), " were not significant"))
 
-
 # Convert names and remove duplicated data
 if(FALSE){
   jackhmmer_data <- sig_jackhmmer_hits %>%
     mutate(target_organism = sub("_\\d+~.*$", "", domain_name),                # extract the target PA strain
-           target_gene     = sub("([A-Za-z0-9_]+)~", "", domain_name)) %>%                # extract the locus in that strain
+           target_gene     = sub("([A-Za-z0-9_]+)~", "", domain_name),
+           locus_id        = gsub(".*_(\\d+)~.*", "\\1", domain_name)) %>%                # extract the locus in that strain
     mutate(query_gene = ifelse(test = grepl("^VFG", query_name),
                                yes  = sub("\\(.*", "", query_name),
-                               no   = sub("\\~.*", "", query_name))) %>%    
+                               no   = sub("\\~.*", "", query_name))) %>%
     left_join(all_meta_trim,
               by = c("query_gene" = "gene_id")) %>%
     group_by(target_organism, target_gene, type) %>%
     filter(sequence_evalue == min(sequence_evalue)) %>%                      # Only keep the sequences with the lowest e_value
     reframe(query_gene     = query_gene,
+            locus_id       = locus_id,
             hits_for_locus = n()) %>%                                        # Calculate how many total queries hit that locus
     group_by(target_organism, target_gene, query_gene, type)  %>%                 
     reframe(hits_for_locus  = hits_for_locus,
+            locus_id       = locus_id,
             match_quality   = n()/hits_for_locus * 100) %>%                  # Calculate the number of times each query hit
     group_by(target_organism, target_gene, type) %>%
     filter(match_quality == max(match_quality)) %>%
@@ -165,6 +219,7 @@ if(FALSE){
               by = c("query_gene" = "gene_id",
                      "type"       = "type")) %>%
     reframe(target_organism = target_organism,
+            locus_id        = locus_id,
             target_gene     = target_gene,
             hits_for_locus  = hits_for_locus,
             query_gene = ifelse(length(unique(query_gene)) == 1,
@@ -183,30 +238,35 @@ if(FALSE){
                                           factor_category_name,
                                           "Unclear"),
             type                 = type) %>%
-    distinct()
+    distinct() %>%
+    left_join(compiled_gff_data,
+              by = c("target_organism" = "organism",
+                     "locus_id"        = "locus"))
 }
 
 # Try multithreading some of above
 if(TRUE){
   temp_jackhmmer_data <- sig_jackhmmer_hits %>%
-    mutate(target_organism = sub("_\\d+~.*$", "", domain_name),                # exract the target PA strain
-           target_gene     = sub("([A-Za-z0-9_]+)~", "", domain_name)) %>%                # extract the locus in that strain
+    mutate(target_organism = sub("_\\d+~.*$", "", domain_name),                # extract the target PA strain
+           target_gene     = sub("([A-Za-z0-9_]+)~", "", domain_name),
+           locus_id        = gsub(".*_(\\d+)~.*", "\\1", domain_name)) %>%                # extract the locus in that strain
     mutate(query_gene = ifelse(test = grepl("^VFG", query_name),
                                yes  = sub("\\(.*", "", query_name),
-                               no   = sub("\\~.*", "", query_name))) %>%    
+                               no   = sub("\\~.*", "", query_name))) %>%
     left_join(all_meta_trim,
               by = c("query_gene" = "gene_id"))
   
   # Function to use in lapply to speed up
   find_best_match <- function(x){
     
-    output <- x  %>%
-      group_by(target_organism, target_gene, type) %>%
+    output <- x  group_by(target_organism, target_gene, type) %>%
       filter(sequence_evalue == min(sequence_evalue)) %>%                      # Only keep the sequences with the lowest e_value
       reframe(query_gene     = query_gene,
+              locus_id       = locus_id,
               hits_for_locus = n()) %>%                                        # Calculate how many total queries hit that locus
       group_by(target_organism, target_gene, query_gene, type)  %>%                 
       reframe(hits_for_locus  = hits_for_locus,
+              locus_id       = locus_id,
               match_quality   = n()/hits_for_locus * 100) %>%                  # Calculate the number of times each query hit
       group_by(target_organism, target_gene, type) %>%
       filter(match_quality == max(match_quality)) %>%
@@ -215,6 +275,7 @@ if(TRUE){
                 by = c("query_gene" = "gene_id",
                        "type"       = "type")) %>%
       reframe(target_organism = target_organism,
+              locus_id        = locus_id,
               target_gene     = target_gene,
               hits_for_locus  = hits_for_locus,
               query_gene = ifelse(length(unique(query_gene)) == 1,
@@ -233,27 +294,25 @@ if(TRUE){
                                             factor_category_name,
                                             "Unclear"),
               type                 = type) %>%
-      distinct()
+      distinct() %>%
+      left_join(compiled_gff_data,
+                by = c("target_organism" = "organism",
+                       "locus_id"        = "locus"))
     
     return(output)
   }
-  
-  temp_jackhmmer_data_2 <- mclapply(X   = split(temp_jackhmmer_data, f = ~ target_organism),
-                                    FUN = find_best_match)
-  rm(temp_jackhmmer_data)
-  gc()
   
   jackhmmer_data <- do.call(what = rbind, 
                             args = mclapply(X        = split(temp_jackhmmer_data, f = ~ target_organism),
                                             FUN      = find_best_match,
                                             mc.cores = threads))
   
-  rm(temp_jackhmmer_data_2)
+  rm(temp_jackhmmer_data)
   gc()
 }
 
 n_query_orgs <- length(unique(jackhmmer_data$target_organism))
-writeLines(paste0(n_query_orgs, " query_organisms found"))
+writeLines(paste0(Sys.time(), ": ", n_query_orgs, " query_organisms found"))
 
 # Write out compiled table
 writeLines(paste0(Sys.time(), ": Writing out compiled data with correct names to ", out_dir, "/", "compiled_jackhmmer_data_corrected_names.csv"))
