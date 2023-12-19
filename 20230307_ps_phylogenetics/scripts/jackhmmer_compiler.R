@@ -120,7 +120,6 @@ gff_files <- list.files(path       = gff_dir,
                         full.names = TRUE,
                         recursive  = TRUE)
 
-
 writeLines(paste0(Sys.time(), ": ", length(gff_files), " gff files found"))
 
 raw_gff_data <- mclapply(X        = as.list(gff_files),
@@ -259,7 +258,8 @@ if(TRUE){
   # Function to use in lapply to speed up
   find_best_match <- function(x){
     
-    output <- x  group_by(target_organism, target_gene, type) %>%
+    output <- x  %>%
+      group_by(target_organism, target_gene, type) %>%
       filter(sequence_evalue == min(sequence_evalue)) %>%                      # Only keep the sequences with the lowest e_value
       reframe(query_gene     = query_gene,
               locus_id       = locus_id,
