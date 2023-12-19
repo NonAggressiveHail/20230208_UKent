@@ -215,3 +215,28 @@ ran "wget https://github.com/wanyuac/BINF_toolkit/archive/refs/heads/master.zip"
 I need to do this to convert my prokka gbk output files to a table, so I can find where my siderophore genes are 
 found that prokka .gbk files have an incorrect header line, "length_" needs replacing with "length "
 realised that the .gff file actually has the info I need, thanks chatgpt!
+Edited jackhmmer_compiler so output now includes the genomic co-ordinates of the gene
+
+20231215
+had an idea of a new workflow:
+~ pull out sequences for siderophore genes as predicted by jackhmmer
+~ split them into orthologus groups (with orthomcl)
+~ see if these groups relate to the 3 siderophore  types, as indicted in do:10.1128/JB.187.6.2138-2147.2005
+
+This still needs some runnnig past marta etc, and im still not exactly sure what proteins I should count for siderohphore biosyntesis
+However I can get started doing the following:
+1) learn how to pull out all me the matches for each siderophore gene into one file (respectively), ready for orthomcl
+~~ extract locus IDs from compiled_jackhmmer_names.csv
+~~ 
+2) run orthomcl on one of these to see how the output looks
+3) learn how to parallelise orthomcl well (should be trivial as just re-running on multiple input files)
+
+20231219
+Todays task is writing a script to gather all the sequences I have for a given PVD enzyme together
+made an R script which splits all the siderophore loci for each organism into their own files, tested working locally
+during testing ran seqkit grep and split on ./data/prokka/Pa_ZPPH33_16375/Pa_ZPPH33_16375.ffn, not sure if it changed the file or not
+installed R-base and tidyverse into orthmcl environment
+ran script I made for seqkit, seems to work. Would be quite trivial to make work parallel properly, but it seems to work here
+perhaps I should just make it parallel with gnu_parallel for an easy speedup
+
+
