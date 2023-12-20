@@ -1,5 +1,8 @@
 #!/bin/bash
 #TODO rewrite so that it just saves out all the seqkit grep commands, then I can run with slurm parallel
+# ~ or just use GNU parallel for speedups on tesla? not sure 
+#TODO add checks to skip already complete bits
+#TODO check to see if jackhmmer can just output matches to file...
 ##################################
 # Help()
 ##################################
@@ -71,54 +74,78 @@ done
 # ~ compile together all the sequences from each organism, for each PVD number 
 
 # Run rscript to split out all my loci into files
-echo 
-echo "Running loci_collector.R"
-echo 
+#echo 
+#echo "Running loci_collector.R"
+#echo 
+#
+#Rscript loci_collector.R ${jackhmmer_file} ${out_dir}/fasta_files/ ${threads}
+#
+## Run seqkit
+#echo
+#echo "Running seqkit"
+#echo
+#
+#
+#n_organisms=$(ls ${out_dir}/fasta_files/ | wc -l)
+#counter=0
+#for dir in ${out_dir}/fasta_files/*
+#do
+#	#echo "dir is $dir"
+#	organism=${dir##*/}
+#	#echo "organism is $organism"
+#	
+#	for sid_loci_file in ${out_dir}/fasta_files/${organism}/*_loci_ids.txt
+#	do
+#		# TODO change this so I dont have "_loci_ids_sequences" in the sid_id	
+#		#echo  "sid_loci_file is $sid_loci_file"
+#		sid_id=$(basename $sid_loci_file .txt)
+#		#echo "sid_id is $sid_id"
+#		
+#		#echo "Seqkit command:"
+#		#echo 
+#		#echo "seqkit grep \ "
+#		#echo "-f $sid_loci_file \ "
+#		#echo "-o ${out_dir}/fasta_files/${organism}/${sid_id}_sequences.faa "
+#		#echo "   ${prokka_dir}/${organism}/${organism}.faa"		
+#		
+#		seqkit grep \
+#			-f $sid_loci_file \
+#			-o ${out_dir}/fasta_files/${organism}/${sid_id}_sequences.faa \
+#			-j $threads \
+#			--quiet \
+#			${prokka_dir}/${organism}/${organism}.faa
+#			
+#		
+#	done
+#	
+#	# Progress counter
+#	let counter=counter+1
+#	per_comp=$(echo "scale=2 ; $counter * 100 / $n_organisms" | bc)
+#	echo "${per_comp}% complete"
+#
+#done
 
-Rscript loci_collector.R ${jackhmmer_file} ${out_dir}/fasta_files/ ${threads}
+# Gather all the seqeuenees together
+## Get Id of each siderophore protein
+all_sid_ids=$( xsv search -i -s 3 -n "Siderophore" $jackhmmer_file |
+               xsv select 6 |
+			   sort |
+			   uniq )
 
-# Run seqkit
-echo
-echo "Running seqkit"
-echo
+## Gather sequences into one file
+mkdir -p ${out_dir}/collated_sequences/
 
-
-n_organisms=$(ls ${out_dir}/fasta_files/ | wc -l)
-counter=0
-for dir in ${out_dir}/fasta_files/*
+for sid_id in $all_sid_ids
 do
-	#echo "dir is $dir"
-	organism=${dir##*/}
-	#echo "organism is $organism"
 	
-	for sid_loci_file in ${out_dir}/fasta_files/${organism}/*_loci_ids.txt
-	do
-		#echo "sid_loci_file is $sid_loci_file"
-		sid_id=$(basename $sid_loci_file .txt)
-		#echo "sid_id is $sid_id"
-		
-		#echo "Seqkit command:"
-		#echo 
-		#echo "seqkit grep \ "
-		#echo "-f $sid_loci_file \ "
-		#echo "-o ${out_dir}/fasta_files/${organism}/${sid_id}_sequences.fna "
-		#echo "   ${prokka_dir}/${organism}/${organism}.ffn"		
-		
-		seqkit grep \
-			-f $sid_loci_file \
-			-o ${out_dir}/fasta_files/${organism}/${sid_id}_sequences.fna \
-			-j $threads \
-			--quiet \
-			${prokka_dir}/${organism}/${organism}.ffn
-			
-		
-	done
+	# delete file first to make sure we dont duplicate sequences
+	rm -f ${out_dir}/collated_sequences/${sid_id}_matches.fna
 	
-	# Progress counter
-	let counter=counter+1
-	per_comp=$(echo "scale=2 ; $counter * 100 / $n_organisms" | bc)
-	echo "${per_comp}% complete"
-
+	find ${out_dir}/fasta_files/ -type f -name ${sid_id}_loci_ids_sequences.faa -exec cat {} >> ${out_dir}/collated_sequences/${sid_id}_matches.fna \;
+	
+	exit	
+	
 done
 
 echo "Script complete"
+

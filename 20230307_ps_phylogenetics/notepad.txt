@@ -239,4 +239,25 @@ installed R-base and tidyverse into orthmcl environment
 ran script I made for seqkit, seems to work. Would be quite trivial to make work parallel properly, but it seems to work here
 perhaps I should just make it parallel with gnu_parallel for an easy speedup
 
+20231220
+First lets colate all the sequences for each siderophore gene together
+installed gawk 5.3.0 in orthomcl environment
+installed xsv 0.13.0 in orthomcl environment, this seems to be able to parse .csv files properly
+
+ran script to collate nucleotide sequences together, which worked for my first test case. Now onto installing orthomcl...
+I'm going to first try to juse follow their user guide (https://orthomcl.org/common/downloads/software/v2.0/UserGuide.txt) even though it looks scary
+
+install mysql
+~ instructions with orthomcl are from 2013, lets find mysqls instructions (https://dev.mysql.com/doc/refman/8.0/en/installing.html)
+~ dowlnoaded using instructions here https://dev.mysql.com/doc/mysql-secure-deployment-guide/5.7/en/secure-deployment-download.html
+~ couldn't get above working so now lets follow this https://www.biostars.org/p/120773/
+~ ^ seemes to work, or at least ran with no errors. Now contiuning from step 5 from https://orthomcl.org/common/downloads/software/v2.0/UserGuide.txt
+
+running orthomcl
+step 5 says I want to use protein sequences, not nucleotides... should have read manual first!
+Now I need to see how to get these...
+decided to remove orthomcl from my orthomcl conda environment, as I don't want it to conflic
+may have accedentally removed some dependenceis like blast
+
+
 
