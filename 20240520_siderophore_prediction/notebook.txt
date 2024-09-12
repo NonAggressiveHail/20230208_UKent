@@ -1,0 +1,485 @@
+20240520
+In 20230307_ps_phylogenetics I was doing various things with Pseudomonas genomes, and it emerged that something quite cool would to be to try and
+bioinformatically classify the genomes based on what pyoverdine they produce. We know that PVDI from PAO1 inhibits rhizopus, but what about PVDII
+and PVDIII?
+
+symlinked ./raw_data/genomes to ../../20230307_ps_phylogenetics/raw_data/genomes/ with ln -s ../../20230307_ps_phylogenetics/raw_data/genomes/ ./genomes
+~ this should mean I don't need to duplicate all my raw genomes 
+symlinked ./raw_data/sideophore_genes too
+symlinked ./raw_data/proteins_of_interest/sideophore_proteins too
+
+copied scripts over:
+~ 20230817_prokka.slurm    -> prokka.slurm
+~ 20230831_blast.slurm     -> blast.slurm
+~ 20230713_jackhmmer.slurm -> jackhmmer.slurm
+
+run prokka.slurm to annotate genomes
+
+20240523
+In doi:10.1128/JB.187.6.2138-2147.2005 they examine the PVD locus and identify which genes have the most mis-match between types.
+I should use this set of genes in my phylogentic tree!
+
+20240711
+Talking to Marta my inital approach should be to:
+~ re-annotate genomes
+~ BLAST search for PVD biosynthesis genes (probably using sequences from doi:10.1128/JB.187.6.2138-2147.2005 is a good start)
+~ concatenate genes together for each bacteria 
+~ Make phylogenetic tree of PVD genes
+~ Examine consensus of the concatenated genes to see where variation is
+
+Copied info from doi:10.1128/JB.187.6.2138-2147.2005 to 20240711_smith_et_al_genes.csv
+Copy-pastes nucleotide and protein sequences of genes in smith et al from PGDB
+Also got proeint sequences of AES and SIP for PVDII and PVDIII respectively
+
+Replaces spaces in titles with sed -i -e "1s/ /_/g" *
+replaces spaces in sequence with newlines with sed -i -e "s/ /\\n/g" *
+ ^ I had changed one or two manually so some files may have alonger final line than others
+filenames to fasta header lines with for f in *.faa; do sed -i "s/^>/>${f%.*}_/" "$f"; done
+
+Copied all ORF predictions into blast folder, and concatenated
+Copied all proteins of interest into blast folde with: find ../../raw_data/smith_et_al_sequences/20240711_smith_et_al_sequences/ -type f -name "*.faa" -exec cat {} >> proteins_of_interest.faa \;
+Files did not end in \n so need to replace > with \n with sed -i "s/>/\\n>/g" proteins_of_interest.faa
+
+Made blast database from all_orfs with: makeblastdb -in all_orfs.faa -out all_orfs -dbtype prot
+
+submitted:
+#!/bin/bash
+
+#SBATCH --job-name=blast_array
+#SBATCH --mail-type=END
+#SBATCH --mail-user=jgh8@kent.ac.uk
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem-per-cpu=14000
+#SBATCH --error=./blast_array/%A-%a.err
+#SBATCH --out=./blast_array/%A-%a.out
+#SBATCH --time=24:00:00
+#SBATCH --array=1-20
+
+
+# conda needs special stuff to start via slurm
+source /shared/home/jgh8/miniconda3/etc/profile.d/conda.sh
+
+conda activate blast
+
+# Make subfiles to be run in jackhmmer
+seqkit split2 ../data/blast/proteins_of_interest.faa \
+			   -p 20 \
+			   --out-dir ../data/blast/blast_inputs/
+
+# Convert slurm array task id so it has leading zeros
+file_number=$( printf '%03d' ${SLURM_ARRAY_TASK_ID})
+
+# Run blast
+blastp -query ../data/blast/blast_inputs/proteins_of_interest.part_${file_number}.faa \
+	   -db ../data/blast/all_orfs_blastdb/all_orfs \
+	   -out ../data/blast/blastp_out_${file_number}.csv \
+	   -outfmt 10 \
+	   -num_threads ${SLURM_CPUS_PER_TASK} \
+
+20240712
+Next step is to calculate some summary statistics on my blast predictions, to see if they all make sense
+Noticed that some of my query sequences have , in which messes up the .csv blast output 
+~ removed with sed -i "s/,/_/g" proteins_of_interest.faa and reran blast.slurm
+
+Made blast_annotator.R locally to ensure we have one annotation per locus.
+Tries to make a co_occurence matrix but couldn't work out how to do it. Would be cool to see if some genes exclude each other.
+Perhaps I should try and find Anne's code from the phage system co_ocurence paper https://www.sciencedirect.com/science/article/pii/S1931312824000192:
+~ Looks like they went for a new approach. Still potentially relevant but lets leave it for now
+
+20240730
+Uploaded blastp_annotations to iridis
+Changed loci_collector to be multithreaded
+
+Installed R, tidyverse, parallel, and xsv into siderohpore_misc conda environment
+
+Ran siderophore_sequence_gather.sh which appears to have correctly concatenated all of the siderophore genes together!
+installed mafft with conda install bioconda::mafft
+
+https://www.mdpi.com/2223-7747/11/1/52 aligned concatenated genes with "MAFFT v7.271 with FFT-NS-2 parameters"
+
+20240731
+
+concatenated sequences together with find ../sid_loci_sequences/ -type f -name "concatenated_sid_genes.faa" -exec cat {} \; >> all_sid_loci_sequences.faa
+~ there are not newlines between each header
+
+replaced > with \n> using sed -i 's/> /\n>/g' all_sid_loci_sequences.faa
+~ but this introduced a newline at the start of the file
+
+removed starting newline with tail -n +2 all_sid_loci_sequences.faa > all_sid_loci_sequences_2.faa
+
+ran mafft with mafft --thread -1 --auto all_sid_loci_sequences.faa > all_sid_loci_sequences.aln
+~ hmm 17 ambiguous characters...
+~ finished quite quick using 16 threads
+~ chose to use FFt-NA-2 progressive method
+
+Installed IQtree with conda install bioconda::iqtree
+built tree with iqtree -s all_sid_loci_sequences.aln -nt AUTO -bb 1000 -alrt 1000 
+~ all sequences are >50% gaps/ambiguity?
+
+Whilst IQtree running installed emboss with conda install bioconda::emboss
+
+made some tree visualisations with showalign
+~ they appear to be pretty bad!
+
+Killed IQtree job as I'm going home, I think there is an option for it to resume tho to use tomorrow
+
+20240801
+Had an idea, plot the locations of all the siderophore genes in all the genomes, to see if they are together or not
+~ lets try it with just PAO1 to start
+
+resumed IQtree with iqtree -s all_sid_loci_sequences.aln -nt AUTO -bb 1000 -alrt 1000
+~ this resumed the run
+
+Made prokka_summarise.R to collate all of the prokka .gff and .txt summary files together for other scritps to use
+~ Did lots of analysis of gene location and frequences locally
+~ This identified some bugs in how I annotated genes as siderophores, some non-siderophore genes had been annotated as siderophore genes
+  These were then included in my MSA and tree, so its likely that that needs redooing
+
+20240802
+resubmitted IQtree as a 72h slurm submission
+
+20240805
+IQtree finished after ~24h. It output a tree but job status was "failed". It appears it did not calculate sharlt or bootstrap scores, due to a missing "\" in the submission.
+
+Re-uploaded blatp_annotations.csv
+Deleted old sid_loci_sequences folder 
+Re-ran siderophore_loci_gather
+Re-submitted IQtree.slurm
+
+20240621
+Locally I have analysed the content of the siderophore regions in R (in C:\Users\jgh1n21\OneDrive - University of Kent\20230222_Experiments\20240712_siderophore_prediction\blast_annotator.R) and it appears that I have some missannotated proteins in the regions. Moreover, the blast and prokka annotations disaggree. Prokkas first round of annotation is with blast, then with custom hmm's. Im therefore going to try and use jackhmmer again. Another idea could be to give prokka a custom list of files to annotate with, being just my siderophore genes.
+
+Copied genes of interest from blast directory
+Removed spaces from header lines, as I had done that before with jackhmmer (not sure why tho)
+
+Some of the array jobs failed, with error "FASTA file is empty or misformateted"
+~ One was spit 14, which was SIP
+~ Containted ".", "[", and "]"
+~ Edited proteins_of_interest.faa with Vim and removed (also ":")
+
+submitted jackhmmer.slurm
+Seemed to finish rather quicky
+
+strangely outputs 3, 10, 27, and 28 are 0 bytes
+~ all say sequence file is misformated 
+~ 3  contains >AES_AES_AAX16359_1_Aes & >PA2424_pvdL_PvdL
+~ 10 contains >PA2406_fpvK_FpvK
+~ 27 contains >PA2402_pvdI_pyoverdine_peptide_synthetase
+~ 28 contains >PA2403_fpvG_FpvG
+
+running jackhmmer --cpu 3 ./proteins_of_interest/jackhmmer_inputs/proteins_of_interest.part_003.faa all_orfs.faa without slurm gave no errors...
+Running jackhmmer -o /dev/null --tblout ./output_tbl_003.txt --cpu 3 ./proteins_of_interest/jackhmmer_inputs/proteins_of_interest.part_003.faa all_orfs.faa also gave no errors
+
+Deleted all output, input, and internmediate files and resubmitted
+
+20240822
+13 now has formatting error, but no other errors. 
+~ file looks fine
+~ perhaps error is due to seqkit not splitting the file before jackhmmer starts?
+~ edited slurm script so now it waits if slurm task != 1, whilst 1 does the splitting
+
+Run jackhmmer on file 13 just on TESLA so its done quickly, the whole job doesnt need to be rerun
+
+Output of all jackhmmer files is only 1.3G, this is far smaller than everything I had before as I had previously included VFDB etc
+copied files locally to ananlyse in R
+
+20240903
+After lots of analysis in R, it appears that jackhmmer is predicting siderohpre genes all over the genome, and at all e-value cutoffs the siderophore region is massive (compared with blast). It also appears that blast and prokka annotations do not aggree with one another consistently. As I am having this annotation issue, it is porbably not worth making my phylogenetic tree untill this is fixed. 
+
+Re-reading prokka manual it has some steps which my improve naming consistency, such as using PAO1 genes before any others in annotating, lets look into that.
+
+Downloaded Pa_PAO1_107 file from https://www.pseudomonas.com/strain/show?id=107 into 20240520_siderophore_prediction/raw_data/genomes/ with wget https://www.pseudomonas.com/downloads/pseudomonas/pgd_r_22_1/Pseudomonas_aeruginosa_PAO1_107/Pseudomonas_aeruginosa_PAO1_107.gbk.gz
+
+Removed all old prokka annotations
+
+Edited prokka.slurm to include --proteins ../raw_data/genomes/Pa_PAO1_107_annotations.gbk 
+Resubmitted to reannotate with more consistent naming
+
+Now to try and re-install orthomcl, from https://www.biostars.org/p/120773/
+Download files:
+cd ~/20230208_UKent/20240520_siderophore_prediction/programs
+wget http://dev.mysql.com/get/Downloads/MySQL-5.6/mysql-5.6.21-linux-glibc2.5-x86_64.tar.gz
+wget http://www.orthomcl.org/common/downloads/software/v2.0/orthomclSoftware-v2.0.9.tar.gz
+wget http://www.micans.org/mcl/src/mcl-latest.tar.gz
+mkdir archives
+mv *.gz archives
+
+Setup mysql:
+mv mysql-5.6.21-linux-glibc2.5-x86_64 mysql
+cd mysql
+cp ../orthomclSoftware-v2.0.9/doc/OrthoMCLEngine/Main/mysql.cnf .
+
+edit config to:
+[client]
+
+socket=/home/jgh8/20230208_UKent/20240520_siderophore_prediction/programs/mysql/thesock
+
+port=3307
+
+####################################
+
+[mysqld]
+
+#REQUIRED!!
+#Change the basedir directory to reflect your mysql home directory
+basedir=/home/jgh8/20230208_UKent/20240520_siderophore_prediction/programs/mysql
+
+#REQUIRED!!
+#Change the data direcory to reflect your mysql data directory
+datadir=/home/jgh8/20230208_UKent/20240520_siderophore_prediction/programs/mysql/data
+
+port=3307
+
+socket=/home/jgh8/20230208_UKent/20240520_siderophore_prediction/programs/mysql/thesock
+
+log-error=/home/jgh8/20230208_UKent/20240520_siderophore_prediction/programs/mysql/data/mysql.err
+
+pid-file=/home/jgh8/20230208_UKent/20240520_siderophore_prediction/programs/mysql/mysql.pid
+
+key_buffer_size=64M
+
+#[OPTIMIZATION]
+#Set this value to 50% of available RAM if your environment permits.
+#300G is half of a biosoc2 node
+myisam_sort_buffer_size=300G
+
+#[OPTIMIZATION]
+#This value should be at least 50% of free hard drive space. Use caution if setting it to 100% of free space however. Your hard disk may fill up!i
+#Set to 5x output of orthomclBlastParser later
+myisam_max_sort_file_size=200G
+
+#[OPTIMIZATION]
+#Our default of 2G is probably fine for this value. Change this value only if you are using a machine with little resources available.
+read_buffer_size=2G
+
+[mysqladmin]
+socket=/home/jgh8/20230208_UKent/20240520_siderophore_prediction/programs/mysql/thesock
+
+Install server:
+./scripts/mysql_install_db --defaults-file=mysql.cnf --lc-messages-dir=../mysql/share
+
+Make startup script (start.sh):
+nohup ./bin/mysqld_safe --defaults-file=mysql.cnf > whatever.stdout 2> whatever.stderr < /dev/null &
+
+Make shutdown script (stop.sh):
+./bin/mysqladmin --defaults-file=mysql.cnf -u root shutdown mysqladmin
+
+Make script to open mysql client (open.sh):
+./bin/mysql --defaults-file=mysql.cnf --user=root --password
+
+start server:
+bash start.sh
+
+change password:
+./bin/mysqladmin --defaults-file=mysql.cnf --user root --password 'new-password'
+~ asked to enter password
+~ put in "mysql"
+~ returned error: ./bin/mysqladmin: connect to server at 'localhost' failed
+error: 'Access denied for user 'root'@'localhost' (using password: YES)'
+~ guide says " if it gives an error then the default password for root will just be blank, so when prompted to give password later on just press enter" so lets continue
+
+open client:
+bash open.sh
+~ just pressed enter at password prompt and got "Welcome to MySQL" so it appears password is blank
+
+SELECT USER()	
+~ correctly returend root@localhost
+
+CREATE DATABASE orthomcl;
+~ Query OK, 1 row affected (0.00 sec)
+
+CREATE USER 'orthomcl'@'localhost' IDENTIFIED BY 'orthomcl'
+~ orthomcl is the password for this user
+
+GRANT ALL PRIVILEGES ON orthomcl.* TO 'orthomcl'@'localhost';
+
+show databases;
+~ correctly shows that orthomcl is a database
+
+SELECT * FROM mysql.db WHERE Db = 'orthomcl'\G;
+~ correctly shows user orthomcl has all privlages 
+
+exit mysql with \q
+
+check perl dependencies:
+perl -MDBI -e 1
+perl -MDBD::mysql -e 1
+~ gave no output so I assume correct
+
+Install MCL (NB this is the version used in the guide 10 years ago, but may now be out of date. However the MCL github says Release 14-137 is a fine version; this MCL implementation has not noticeably changed over the past decade, so for using the clustering program mcl it does not matter which of these versions you have):
+cd ../mcl-14-137
+./configure --prefix=/home/jgh8/20230208_UKent/20240520_siderophore_prediction/programs/mcl-14-137
+make install
+
+Install OrthoMCL:
+cd ../orthomclSoftware-v2.0.9/
+export PATH=$PATH:/home/jgh8/20230208_UKent/20240520_siderophore_prediction/programs/orthomclSoftware-v2.0.9/bin
+~ also added to ~/.bashrc
+
+mkdir my_orthomcl_dir
+cd my_orthomcl_dir
+cp ../doc/OrthoMCLEngine/Main/orthomcl.config.template .
+mv orthomcl.config.template orthomcl.config
+
+Edit config file to:
+# this config assumes a mysql database named 'orthomcl'.  adjust according
+# to your situation.
+dbVendor=mysql
+dbConnectString=dbi:mysql:orthomcl:mysql_local_infile=1:localhost:3307;mysql_read_default_file=/home/jgh8/20230208_UKent/20240520_siderophore_prediction/programs/mysql/mysql.cnf
+dbLogin=orthomcl
+dbPassword=orthomcl
+similarSequencesTable=SimilarSequences
+orthologTable=Ortholog
+inParalogTable=InParalog
+coOrthologTable=CoOrtholog
+interTaxonMatchView=InterTaxonMatch
+percentMatchCutoff=50
+evalueExponentCutoff=-5
+oracleIndexTblSpc=NONE
+
+orthomclInstallSchema orthomcl.config
+
+Now reccomended to continue running orthomcl from orthomcl user manual at ./orthomclSoftware-v2.0.9/doc/OrthoMCLEngine/Main
+
+Copied orthomcl_setup.sh from ps_phylogenetics
+~ Deleted some old code not relevant
+
+Got error:
+~ Fasta file '../../data/prokka/Pa_12_4_4_59_3618/proteins.faa' contains a duplicate id: _no_value
+~ Looks like now I am useing the --proteins option from prokka its given me weird ID's for my propteins
+~ Lets try and sort that out now
+
+Prokka troubleshooting:
+~ Pa_12_4_4_59_3618.log has "Could not run command: prokka-genbank_to_fasta_db --format genbank \.\.\/raw_data\/genomes\/Pa_PAO1_107_annotations\.gbk > \.\.\/data\/prokka\/Pa_12_4_4_59_3618\/proteins\.faa 2> /dev/null"
+~ Running prokka-genbank_to_fasta_db Pa_PAO1_107_annotations.gbk > proteins.faa gives:
+
+Will use first of (protein_id locus_tag db_xref) as FASTA ID
+Parsing: NC_002516.2
+
+--------------------- WARNING ---------------------
+MSG: Seq [NC_002516.2]: Not using a valid terminator codon!
+---------------------------------------------------
+
+--------------------- WARNING ---------------------
+MSG: Seq [NC_002516.2]: Not using a valid terminator codon!
+---------------------------------------------------
+
+--------------------- WARNING ---------------------
+MSG: Seq [NC_002516.2]: Not using a valid terminator codon!
+---------------------------------------------------
+
+--------------------- WARNING ---------------------
+MSG: Seq [NC_002516.2]: Not using a valid initiator codon!
+
+
+---------------------------------------------------
+Argument "NA" isn't numeric in numeric ne (!=) at /shared/home/jgh8/miniconda3/envs/roary/bin/prokka-genbank_to_fasta_db line 64, <> line 199525.
+        /codon_start=NA - trimming mRNA!
+
+------------- EXCEPTION: Bio::Root::Exception -------------
+MSG: Bad start parameter (NA). Start must be positive.
+STACK: Error::throw
+STACK: Bio::Root::Root::throw /shared/home/jgh8/miniconda3/envs/roary/lib/site_perl/5.26.2/Bio/Root/Root.pm:447
+STACK: Bio::PrimarySeq::subseq /shared/home/jgh8/miniconda3/envs/roary/lib/site_perl/5.26.2/Bio/PrimarySeq.pm:423
+STACK: Bio::PrimarySeqI::trunc /shared/home/jgh8/miniconda3/envs/roary/lib/site_perl/5.26.2/Bio/PrimarySeqI.pm:458
+STACK: /shared/home/jgh8/miniconda3/envs/roary/bin/prokka-genbank_to_fasta_db:66
+-----------------------------------------------------------
+
+Looks like the file downloaded from pseudomonas genome database is not the same as NCBI refseq. It has 3 instances of \codon_start=NA as opposed to 0 in refseq file. Lets use it instead.
+running prokka-genbank_to_fasta_db refseq_PAO1_annotations.gb > proteins.faa worked with no errors
+Rerun prokka.slurm with refseq_PAO1_annotations.gb as the reference
+
+20240904
+looking at prokka logs seems to have run properly
+ran bash orthomcl_setup.sh -p ../data/prokka/ -o ../programs/orthomclSoftware-v2.0.9/my_orthomcl_dir/
+
+taxon_codes file seems empty...
+Reran orthoMCL setup after fixing bug, now taxon_codes has contents
+
+Copied orthomcl_blast.slurm from ps_phylogenetics
+Edited output directory from ../data/orthomcl to ../programs/orthomclSoftware-v2.0.9/my_orthomcl_dir/
+submitted orhomcl_blast again
+
+Meanwhile doing some gooling seems to suggest that orthofinder is superior to orthomcl now, contradictory to what marta suggested. Lets try using that too so I can compare everything
+
+Install orthofinder with conda install bioconda::orthofinder in orthofinder conda env
+Need to put all .faa files into one folder for orthofinder to run on
+Seems that prokka has left behind some output files called "proteins.faa", could be leftover from when it failed before? 
+~ deleted with find ../data/prokka -name "*proteins.faa" -exec rm {} \;
+
+submitted orthofinder.slurm
+
+20240905
+Redoing my region analysis in R with the new prokka annotations
+In Pa_12_4_4_59_3618 locus 04168 its been annotted as "pvd", but the description says "protein pvdF"
+~ Why is it not "pvdF"?
+~ Also Pa_12_4_4_59_3618 00002 is annotated as "NA" but its description is "HxcU pseudopilin"?
+~ Lets look in its raw gff file
+
+For locus 04168 the desctiption line is "ID=Pa_12_4_4_59_3618 04168;Name=pvdF;gene=pvdF;inference=ab initio prediction:Prodigal:002006,similar to AA sequence:refseq_PAO1_annotations.gb:NP_251086.1;locus_tag=Pa_12_4_4_59_3618_04168;product=pyoverdine synthetase F"
+~ therefore im somehow pulling the gene field out wrong!
+
+For locus 00002 the description line is "ID=Pa_12_4_4_59_3618 00002;inference=ab initio prediction:Prodigal:002006,similar to AA sequence:refseq_PAO1_annotations.gb:NP_249369.1;locus_tag=Pa_12_4_4_59_3618_00002;product=HxcU pseudopilin"
+~ It's NA as there is no gene field
+~ Lets look at the PAO1 reference gb file
+~~ entry has no /gene field, and it also says its a "low confidence" prediction, perhaps this is why
+~ leave this for now and fix 04168 instead
+
+In prokka_summarise Pa_12_4_4_59_3618 locus 04168 correctly has pvdF
+~ appears error is when compiled_gffs are loaded into region analysis script
+~ regex sub("_*.$", "", "pvdF") was wrong, as _* matches 0 or more _, correct is sub("_.*$", "", "pvdF")
+
+20240910
+Met with Marta and decided to update pipeline:
+~ align genomes together (https://github.com/richarddurbin/rotate seems to do the job) 
+~ Annotate with prokka using the annotations from PGDB with aes and sip
+~~ Needs repairing but I can do it manually
+~ Manually inspect stop codons in annotaitons in biosynthesis region
+~~ A pain but needs doing
+~ Cluster into orthgorups with Orthofinder
+~~ OrthoMCL is depreciated really
+~ Annotate Orthogroups with prokka annotation
+~ Test synteny (https://github.com/Farre-lab/syntenyPlotteR_BETA may work)
+~ Make phylogenetic tree of region
+
+Installing rotate was apparently already done but I didn't make notes!
+
+started making script to run rotate
+
+20240911
+ran grep "^>" ../raw_data/genomes/pgdb_complete_aeruginosa/*.fna | grep -v "chromosome" to check if all chromomsomes actually have chromosome in header
+~ Not true!
+~ Pa_DN1_5583.fna:>NZ_CP017099.1|strain DN1 Pseudomonas aeruginosa strain DN1, complete genome. length=6641902;assembly=GCF_001722005.2
+
+I have 464 genomes
+~ grep -c "^>" *.fna | awk -F ':' '{print $2}' | sort | uniq -c | sort -nr shows:
+~ 377 have 1 sequence
+~ 62 have 2 
+~ 13 have 3
+~ 8 have 4
+~ 3 have 6
+~ 1 has 5
+~ Need to find a grep expression which gives me 464 having 1 sequence!
+~ 461 have on instance of chromosome, 3 have 0
+~~ Pa_DN1_5583.fna:>NZ_CP017099.1|strain DN1 Pseudomonas aeruginosa strain DN1, complete genome. length=6641902;assembly=GCF_001722005.2
+~~ Pa_PA121617_3995.fna:>NZ_CP016214.1|strain PA121617 Pseudomonas aeruginosa strain PA121617, complete genome. length=6430493;assembly=GCF_001679685.1
+~~ Pa_PA7790_5368.fna:>NZ_CP014999.1|strain PA7790 Pseudomonas aeruginosa strain PA7790, complete genome. length=7018690;assembly=GCF_001870265.1
+~ grep -c -E "chromosome|complete genome" *.fna | awk -F ':' '{print $2}' | sort | uniq -c | sort -nr gives 464 files with 1 match
+
+Ran bash rotate.sh -f ../raw_data/genomes/pgdb_complete_aeruginosa/ -o ../data/rotate/ -n agagtttgat -s "chromosome|complete genome" -t 4
+~ produced a file with 464 sequences in it
+
+Not sure if rotate will manage to flip genomes in wrong orientation?
+
+New idea:
+~ Align each genome to Pa_PAO1_107, one at a time, with lastZ
+
+Working up one example
+~ ran lastz ../../
+raw_data/genomes/pgdb_complete_aeruginosa/Pa_PAO1_107.fna ../../raw_data/genomes/pgdb_complete_aeruginosa/Pa_DN1_5583
+.fna --notransition --step=20 --nogapped --format=maf > Pa_PAO1_107_v_Pa_DN1_5583.maf
+
+this is all very confusing!
+Mauve has a "reorder contigs" option https://darlinglab.org/mauve/user-guide/reordering.html which will also flip orientations
+~ It may be I use this to flip them all to the same orientation, then use roatate to rotate them all to same start point?

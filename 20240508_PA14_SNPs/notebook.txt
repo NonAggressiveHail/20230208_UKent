@@ -1,0 +1,302 @@
+20240508
+
+On 20231121 I tested 3 P. aeruginosa PA14 strains with rhlA removed for anti fungal activity.
+PA14-O rhlA::GmR (from the O'toole lab) had no activity, but the transposon mutants PA14 rhlA::Tn1020 and PA14 rhlA::Tn1021 still had activity.
+I therefore want to sequence PA14-O WT, PA14-O rhlA::GmR, and PA14 rhlA::Tn1020 to confirm if they are indeed knock-outs of their intended genes,
+and if PA14-O rhlA::GmR has had any other mutations compared to background which may have removed activity. 
+
+I don't know how to identify SNPs, so or view the genomes. I'm starting with this guide https://www.ebi.ac.uk/sites/ebi.ac.uk/files/content.ebi.ac.uk/materials/2014/140217_AgriOmics/dan_bolser_snp_calling.pdf
+to see what I get
+
+Indexed reference with bwa index GCF_000014625.1_ASM1462v1_genomic.fna
+Aligned paired ends to reference with bwa mem -t 4 ../raw_data/reference_sequence/GCF_000014625.1/GCF_000014625.1_ASM1462v1_genomic.fna ../raw_data/reads/269864_PA14OrhlAGmR_1_trimmed.fastq.gz ../raw_data/reads/269864_PA14OrhlAGmR_2_trimmed.fastq.gz -o PA14OrhlAGmR.paired.sam
+converted to BAM format with samtools view -S -b PA14OrhlAGmR.paired.sam > PA14OrhlAGmR.paired.bam
+sorted BAM with samtools sort PA14OrhlAGmR.paired.bam -o PA14OrhlAGmR_paired_sorted.bam
+reindexed reference with samtools faidx GCF_000014625.1_ASM1462v1_genomic.fna
+Variants called with bcftools mpileup -Ou -f ../raw_data/reference_sequence/GCF_000014625.1/GCF_lh000014625.1_ASM1462v1_genomic.fna PA14OrhlAGmR_paired_sorted.bam | bcftools call -mv -Ob --ploidy 1 -o PA14OrhlAGmR_variant_calls.bcf
+Variants counted with bcftools view PA14OrhlAGmR_variant_calls.bcf | grep "^[^#]" | wc -l
+
+This looks like it has worked, with over 262 SNPs identified!
+Need to repeat with all my mutatants, then see which ones have unique SNPs to try and reduce the number.
+
+Completed for PA14-O WT, with 259 SNPs
+Completed for PA14-O rhlA:Tn1020, with 263 SNPs
+
+Converted to vcf format with bcftools convert -Ov -o PA14OrhlAGmR_variant_calls.vcf PA14OrhlAGmR_variant_calls.bcf
+
+Repeated for PA14-O WT and PA14-O rhlA:Tn1020
+
+Indexed all variant_calls.bcf files with bcftools index PA14OWT_variant_calls.bcf
+
+Idenitified union and complement SNPs between PA14-O WT and PA14-O rhla:GMR with bcftools isec ./PA14OrhlAGMR/PA14OrhlAGmR_variant_calls.bcf ./PA14OWT/PA14OWT_variant_calls.bcf -p ./
+Repeated for all pairs of genomes
+
+20240509
+
+Marta has reccomended a different approach:
+~ align reads to PA14-O WT with LastZ
+~ convert to MSA format
+~ use https://github.com/sanger-pathogens/snp-sites to call SNPs between the two genomes
+
+This seems better, and I'm restarting with this method. 
+
+Followed https://www.bx.psu.edu/~rsharris/lastz/README.lastz-1.04.15.html#install to install lastZ
+
+Trying to align with lastz ./raw_data/assemblies/contigs/269863_PA14OWT.fasta ./raw_data/assemblies/contigs/269864_PA14OrhlAGmR.fasta > ./data/PA14OrhlAGmR_v_PA14OWT.maf
+This failes as both assemblies are at a contig level. I'm going to try and do a reference based assembly of PA14-O Wt
+instead and use that. I'm not sure if this is appropriate and have emailed Marta to ask.
+
+I can use samtools to make a consensus sequence combining SNPs between PA14-O WT with the PA14 reference genome.
+Lets try the guide here https://samtools.github.io/bcftools/howtos/consensus-sequence.html
+
+normlaize indels bcftools norm -f ../../raw_data/reference_sequence/GCF_000014625.1/GCF_000014625.1_ASM1462v1_genomic.fna PA14OWT_variant_calls.vcf -Ob -o PA14OWT_normalised_variant_calls.bcf
+filter adjacent indels within 5bp  bcftools filter --IndelGap 5 PA14OWT_normalised_variant_calls.bcf -Ob -o PA14OWT_Indelfiltered_normalised_variant_calls.bcf
+made index with bcftools index PA14OWT_Indelfiltered_normalised_variant_calls.bcf
+apply variants to make consensus sequence with cat ../../raw_data/reference_sequence/GCF_000014625.1/GCF_000014625.1_ASM1462v1_genomic.fna | bcftools consensus PA14OWT_Indelfiltered_normalised_variant_calls.bcf > PA14OWT_consensus.fna
+Gave output:
+The site NC_008463.1:2341609 overlaps with another variant, skipping...
+The site NC_008463.1:3198144 overlaps with another variant, skipping...
+The site NC_008463.1:3390483 overlaps with another variant, skipping...
+The site NC_008463.1:5028117 overlaps with another variant, skipping...
+Applied 255 variants
+
+Now lets try calling SNPs with my samtools/bcftools workflow, using this new consensus as the reference
+moved previous PA14OrhlATn1020 and PA14OrhlaGMR folders into archive, as they have SNPs versus the PA14 reference sequence
+
+repeated workflow done on 20240508
+PA14OrhlAGmR has 16 snps
+PA14OrhlAGmR has 17 snps
+
+20240513
+Had a chat with Marta, who told me that the mpileup workflow is deprecieated. The new current tool is GATK
+She proposes the following workflow:
+~ align reads to PA14 referernce genome with bwa mem
+~ call variants with GATK
+~~ This may also pick the transposon up as a big indel
+~ Identify unique variants 
+~ Predict impact of these variants with SNPEff (if supported)
+
+GATK downloaded with wget https://github.com/broadinstitute/gatk/releases/download/4.5.0.0/gatk-4.5.0.0.zip
+GATK unzipped and added to PATH in ~/.bashrc
+installed conda environment with conda env create -f gatkcondaenv.yml
+
+gatk --help works fine, but gatk --list cases a java runtime error
+java -version gives
+openjdk version "1.8.0_402"
+OpenJDK Runtime Environment (build 1.8.0_402-b06)
+OpenJDK 64-Bit Server VM (build 25.402-b06, mixed mode)
+
+downloaded JDK 17 with https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.11%2B9/OpenJDK17U-jdk_x64_linux_hotspot_17.0.11_9.tar.gz
+added to ~/.bashrc:
+export JAVA_HOME=/home/jgh8/20230208_UKent/20240508_PA14_SNPs/programs/jdk-17.0.11+9
+export PATH=$JAVA_HOME/bin:$PATH
+
+java -version now reads:
+openjdk version "17.0.11" 2024-04-16
+OpenJDK Runtime Environment Temurin-17.0.11+9 (build 17.0.11+9)
+OpenJDK 64-Bit Server VM Temurin-17.0.11+9 (build 17.0.11+9, mixed mode, sharing)
+
+gatk --list now works!
+
+
+realigned reads to reference using steps used on 20240508, NB sorting was not needed as MarkDuplicatesSpark does the sorting
+
+marked duplicate read with gatk MarkDuplicatesSpark --input <file> --output <file_marked_duplicates> --conf 'spark.executor.cores=8'
+
+above did not work as it needs the read group of the read to be in the .bam file. What are these?
+GATK dictionary says that all reads from a single lane of a flow cell are from the same read group.
+The header line of a fastq file contains some of this info, for example @MNG003:505:HWKFTDRX3:1:2101:12518:1000 1:N:0:TATGACTC+TTCGGCAT
+@MNG003   = instrument
+505       = the run ID
+HWKFTDRX3 = flowcell ID
+1         = flowcell lane
+
+Extracting all of the headers from 269863_PA14OWT_1_trimmed.fastq using cat 269863_PA14OWT_1_trimmed.fastq | grep "^@"|
+ cut -d":" -f1-4 | sort | uniq -c
+
+I have two read groups in this file 
+
+731547 x @MNG003:505:HWKFTDRX3:1
+762465 x @MNG003:505:HWKFTDRX3:2
+
+I think I need to split every fastq file I have into seperate files by read group, then align each to the reference with -R describing the read group
+each can then be merged back together with the correct read group field
+all reads unzipped with gunzip *
+ran for i in *; do echo $i; cat $i | grep "^@" | cut -d":" -f1-4 | sort | uniq -c; done to see how many of each read group each one has
+
+269863_PA14OWT_1_trimmed.fastq
+ 731547 @MNG003:505:HWKFTDRX3:1
+ 762465 @MNG003:505:HWKFTDRX3:2
+269863_PA14OWT_2_trimmed.fastq
+ 731547 @MNG003:505:HWKFTDRX3:1
+ 762465 @MNG003:505:HWKFTDRX3:2
+269863_PA14OWT_U1_trimmed.fastq
+  20484 @MNG003:505:HWKFTDRX3:1
+  20436 @MNG003:505:HWKFTDRX3:2
+269863_PA14OWT_U2_trimmed.fastq
+   4238 @MNG003:505:HWKFTDRX3:1
+   4010 @MNG003:505:HWKFTDRX3:2
+269864_PA14OrhlAGmR_1_trimmed.fastq
+ 497016 @MNG003:505:HWKFTDRX3:1
+ 521061 @MNG003:505:HWKFTDRX3:2
+269864_PA14OrhlAGmR_2_trimmed.fastq
+ 497016 @MNG003:505:HWKFTDRX3:1
+ 521061 @MNG003:505:HWKFTDRX3:2
+269864_PA14OrhlAGmR_U1_trimmed.fastq
+  13429 @MNG003:505:HWKFTDRX3:1
+  13258 @MNG003:505:HWKFTDRX3:2
+269864_PA14OrhlAGmR_U2_trimmed.fastq
+   2890 @MNG003:505:HWKFTDRX3:1
+   2719 @MNG003:505:HWKFTDRX3:2
+269865_PA14OrhlATn1020_1_trimmed.fastq
+ 406962 @MNG003:505:HWKFTDRX3:1
+ 427561 @MNG003:505:HWKFTDRX3:2
+269865_PA14OrhlATn1020_2_trimmed.fastq
+ 406962 @MNG003:505:HWKFTDRX3:1
+ 427561 @MNG003:505:HWKFTDRX3:2
+269865_PA14OrhlATn1020_U1_trimmed.fastq
+  14352 @MNG003:505:HWKFTDRX3:1
+  14380 @MNG003:505:HWKFTDRX3:2
+269865_PA14OrhlATn1020_U2_trimmed.fastq
+   3877 @MNG003:505:HWKFTDRX3:1
+   3870 @MNG003:505:HWKFTDRX3:2
+
+This is odd, as it seems to say that every sample was run on the same two lanes on the same flow cell! Asked on
+bioinformatics teams chanel for help!
+
+20240514
+GATK's FASTQ to unmapped BAM tutorial (https://gatk.broadinstitute.org/hc/en-us/articles/4403687183515--How-to-Generate-an-unmapped-BAM-from-FASTQ-or-aligned-BAM)
+It says that the only read group fields required are read_group_name, sample_name, 
+
+Looking at https://www.biostars.org/p/329768/, and https://www.biostars.org/p/43897/ it appears that the key components are 
+flow cell, lane number, and sample ID. Sample is included as multiple samples CAN be multiplexed through one lane. It
+therefore appears that my samples have all been multiplexed through the same 2 lanes. I need to split each fastq into its 2 read groups, then use this with
+bwa mem -R to add the read group in when making the bam.
+
+Installed Go as fastqsplit needs it to build
+
+downloaded fastQsplit from https://github.com/stevekm/fastq-split/archive/refs/heads/main.zip
+unzipped then built from source with go build -o ./fastqSplit ./main.go
+added entry to bashrc to add fastQsplit to path
+
+split out all read groups with find . -maxdepth 1 -type f ! -name '*U*' | parallel -j6 'fastqSplit -prefix ./reads_by_read_group/{/.}_ {}'
+
+installed parallel into gatk environment so i can parallelise this
+
+first read group aligned with
+bwa mem -t 4 \
+         -R "@RG\tID:PA14OrhlAGmR.HWKFTDRX3.1" \
+         ../../raw_data/reference_sequence/GCF_000014625.1/GCF_000014625.1_ASM1462v1_genomic.fna \
+         ../../raw_data/reads/reads_by_read_group/269864_PA14OrhlAGmR_1_trimmed_HWKFTDRX3.1.fastq \
+         ../../raw_data/reads/reads_by_read_group/269864_PA14OrhlAGmR_2_trimmed_HWKFTDRX3.1.fastq \
+         -o PA14OrhlAGmR_HWKFTDRX3_1_paired.sam 
+
+second read group aligned with
+bwa mem -t 4 \
+         -R "@RG\tID:PA14OrhlAGmR.HWKFTDRX3.2" \
+         ../../raw_data/reference_sequence/GCF_000014625.1/GCF_000014625.1_ASM1462v1_genomic.fna \
+         ../../raw_data/reads/reads_by_read_group/269864_PA14OrhlAGmR_1_trimmed_HWKFTDRX3.2.fastq \
+         ../../raw_data/reads/reads_by_read_group/269864_PA14OrhlAGmR_2_trimmed_HWKFTDRX3.2.fastq \
+         -o PA14OrhlAGmR_HWKFTDRX3_2_paired.sam 
+
+converted to bam with
+samtools view -S -b PA14OrhlAGmR_HWKFTDRX3_1_paired.sam > PA14OrhlAGmR_HWKFTDRX3_1_paired.bam
+samtools view -S -b PA14OrhlAGmR_HWKFTDRX3_2_paired.sam > PA14OrhlAGmR_HWKFTDRX3_2_paired.bam
+
+sorted with:
+sorted BAM with samtools sort PA14OrhlAGmR_HWKFTDRX3_1_paired.bam -o PA14OrhlAGmR_HWKFTDRX3_1_paired_sorted.bam
+sorted BAM with samtools sort PA14OrhlAGmR_HWKFTDRX3_2_paired.bam -o PA14OrhlAGmR_HWKFTDRX3_2_paired_sorted.bam
+
+merged with samtools merge PA14OrhlAGmR_paired_sorted.bam PA14OrhlAGmR_HWKFTDRX3_1_paired_sorted.bam PA14OrhlAGmR_HWKFTDRX3_2_paired_sorted.bam
+duplicates marked with gatk MarkDuplicatesSpark --input PA14OrhlAGmR_paired_sorted.bam --output PA14OrhlAGmR_paired_sorted_mark_dups.bam --conf 'spark.executor.cores=4'
+skipping base recalibration as it is possible to continue without it, and it requires me to run on uncorrected data anyway
+creating reference genome dictionary file with gatk CreateSequenceDictionary -R GCF_000014625.1_ASM1462v1_genomic.fna
+
+called variants with gatk HaplotypeCaller -R ../../raw_data/reference_sequence/GCF_000014625.1/GCF_000014625.1_ASM1462v1_genomic.fna -I PA14OrhlAGmR_paired_sorted_mark_dups.bam -O PA14OrhlAGmR_variants.vcf --sample-ploidy 1
+^ this failed with the same error as here: https://gatk.broadinstitute.org/hc/en-us/community/posts/4412745467931-HaplotypeCaller-does-not-work
+It appears that when I added my readgroups I did not do it the right way
+
+re-aligned first read group with
+bwa mem -t 4 \
+         -R "@RG\tID:HWKFTDRX3.1\tPL:illumina\tSM:PA14OrhlAGmR" \
+         ../../raw_data/reference_sequence/GCF_000014625.1/GCF_000014625.1_ASM1462v1_genomic.fna \
+         ../../raw_data/reads/reads_by_read_group/269864_PA14OrhlAGmR_1_trimmed_HWKFTDRX3.1.fastq \
+         ../../raw_data/reads/reads_by_read_group/269864_PA14OrhlAGmR_2_trimmed_HWKFTDRX3.1.fastq \
+         -o PA14OrhlAGmR_HWKFTDRX3_1_paired.sam 
+
+re-aligned second read group with
+bwa mem -t 4 \
+         -R "@RG\tID:HWKFTDRX3.2\tPL:illumina\tSM:PA14OrhlAGmR" \
+         ../../raw_data/reference_sequence/GCF_000014625.1/GCF_000014625.1_ASM1462v1_genomic.fna \
+         ../../raw_data/reads/reads_by_read_group/269864_PA14OrhlAGmR_1_trimmed_HWKFTDRX3.2.fastq \
+         ../../raw_data/reads/reads_by_read_group/269864_PA14OrhlAGmR_2_trimmed_HWKFTDRX3.2.fastq \
+         -o PA14OrhlAGmR_HWKFTDRX3_2_paired.sam 
+
+Repeated above steps to get the vcf file, it worked! 
+PA14OrhlAGmR, 263 SNPs
+
+Repeated for PA14OWT
+bwa mem -t 4 \
+         -R "@RG\tID:HWKFTDRX3.1\tPL:illumina\tSM:PA14OWT" \
+         ../../raw_data/reference_sequence/GCF_000014625.1/GCF_000014625.1_ASM1462v1_genomic.fna \
+         ../../raw_data/reads/reads_by_read_group/269863_PA14OWT_1_trimmed_HWKFTDRX3.1.fastq \
+         ../../raw_data/reads/reads_by_read_group/269863_PA14OWT_2_trimmed_HWKFTDRX3.1.fastq \
+         -o PA14OWT_HWKFTDRX3_1_paired.sam
+
+bwa mem -t 4 \
+         -R "@RG\tID:HWKFTDRX3.2\tPL:illumina\tSM:PA14OWT" \
+         ../../raw_data/reference_sequence/GCF_000014625.1/GCF_000014625.1_ASM1462v1_genomic.fna \
+         ../../raw_data/reads/reads_by_read_group/269863_PA14OWT_1_trimmed_HWKFTDRX3.2.fastq \
+         ../../raw_data/reads/reads_by_read_group/269863_PA14OWT_2_trimmed_HWKFTDRX3.2.fastq \
+         -o PA14OWT_HWKFTDRX3_2_paired.sam
+
+samtools view -S -b PA14OWT_HWKFTDRX3_1_paired.sam > PA14OWT_HWKFTDRX3_1_paired.bam
+samtools view -S -b PA14OWT_HWKFTDRX3_2_paired.sam > PA14OWT_HWKFTDRX3_2_paired.bam 
+
+samtools sort PA14OWT_HWKFTDRX3_1_paired.bam -o PA14OWT_HWKFTDRX3_1_paired_sorted.bam
+samtools sort PA14OWT_HWKFTDRX3_2_paired.bam -o PA14OWT_HWKFTDRX3_2_paired_sorted.bam
+
+samtools merge PA14OWT_paired_sorted.bam PA14OWT_HWKFTDRX3_1_paired_sorted.bam PA14OWT_HWKFTDRX3_2_paired_sorted.bam
+
+gatk MarkDuplicatesSpark --input PA14OWT_paired_sorted.bam --output PA14OWT_paired_sorted_mark_dups.bam --conf 'spark.executor.cores=4'
+
+gatk HaplotypeCaller -R ../../raw_data/reference_sequence/GCF_000014625.1/GCF_000014625.1_ASM1462v1_genomic.fna -I PA14OWT_paired_sorted_mark_dups.bam -O PA14OWT_variants.vcf --sample-ploidy 1
+PA14OWT, 257 SNPs!
+
+compressed both .vcf files with bgzip, then indexed with bcftools index
+compared files with bcftools isec -p . ../PA14OWT/PA14OWT_variants.vcf.gz ../PA14OrhlAGMR/PA14OrhlAGmR_variants.vcf.gz
+
+PA14WT has 0 variants not in PA14rhlAGMR
+PA14rhlAGMR has 6 variants not in PA14WT:
+#CHROM          POS     ID      REF     ALT                     QUAL    FILTER  INFO                                                                                                                            FORMAT          PA14OrhlAGmR
+NC_008463.1     1076143 .       C       G                       76.04   .       AC=1;AF=1;AN=1;BaseQRankSum=-1.664;DP=26;FS=36.027;MLEAC=1;MLEAF=1;MQ=60;MQRankSum=0;QD=3.04;ReadPosRankSum=-3.315;SOR=5.546    GT:AD:DP:GQ:PL  1:10,15:25:86:86,0
+NC_008463.1     1721463 .       C       G                       35.04   .       AC=1;AF=1;AN=1;BaseQRankSum=0;DP=8;FS=10;MLEAC=1;MLEAF=1;MQ=60;MQRankSum=0;QD=7.01;ReadPosRankSum=-1.645;SOR=2.78               GT:AD:DP:GQ:PL  1:2,3:5:45:45,0
+NC_008463.1     1721465 .       A       G                       35.04   .       AC=1;AF=1;AN=1;BaseQRankSum=-0.253;DP=5;FS=10;MLEAC=1;MLEAF=1;MQ=60;MQRankSum=0;QD=7.01;ReadPosRankSum=-1.645;SOR=2.78          GT:AD:DP:GQ:PL  1:2,3:5:45:45,0
+NC_008463.1     1721468 .       C       G                       35.04   .       AC=1;AF=1;AN=1;BaseQRankSum=0.967;DP=6;FS=10;MLEAC=1;MLEAF=1;MQ=60;MQRankSum=0;QD=7.01;ReadPosRankSum=-1.383;SOR=2.78           GT:AD:DP:GQ:PL  1:2,3:5:45:45,0
+NC_008463.1     3421061 .       A       AGCCGCGCCGGCAGTTC       1654.01 .       AC=1;AF=1;AN=1;DP=40;FS=0;MLEAC=1;MLEAF=1;MQ=60;QD=28.07;SOR=1.432                                                              GT:AD:DP:GQ:PL  1:0,37:37:99:1664,0
+NC_008463.1     3609108 .       A       G                       2519.04 .       AC=1;AF=1;AN=1;DP=64;FS=0;MLEAC=1;MLEAF=1;MQ=60;QD=31.92;SOR=1.888                                                              GT:AD:DP:GQ:PL  1:0,62:62:99:2529,0
+
+
+now on to identify what these 6 variants could impact!
+
+downloaded SNPeff (https://pcingola.github.io/SnpEff/) with wget https://snpeff.blob.core.windows.net/versions/snpEff_latest_core.zip
+unzipped, then searched database with java -Xmx8g -jar snpEff.jar databases | grep "pa14"
+
+20240516
+java -Xmx8g -jar snpEff.jar databases | grep "pa14" shows multiple PA14 genomes:
+Escherichia_coli_pa14             Escherichia_coli_pa14             [https://snpeff.blob.core.windows.net/databases/v5_2/snpEff_v5_2_Escherichia_coli_pa14.zip, https://snpeff.blob.core.windows.net/databases/v5_0/snpEff_v5_0_Escherichia_coli_pa14.zip, https://snpeff.blob.core.windows.net/databases/v5_1/snpEff_v5_1_Escherichia_coli_pa14.zip]
+Pseudomonas_aeruginosa_pa14       Pseudomonas_aeruginosa_pa14       [https://snpeff.blob.core.windows.net/databases/v5_2/snpEff_v5_2_Pseudomonas_aeruginosa_pa14.zip, https://snpeff.blob.core.windows.net/databases/v5_0/snpEff_v5_0_Pseudomonas_aeruginosa_pa14.zip, https://snpeff.blob.core.windows.net/databases/v5_1/snpEff_v5_1_Pseudomonas_aeruginosa_pa14.zip]
+Pseudomonas_aeruginosa_ucbpp_pa14 Pseudomonas_aeruginosa_ucbpp_pa14 [https://snpeff.blob.core.windows.net/databases/v5_2/snpEff_v5_2_Pseudomonas_aeruginosa_ucbpp_pa14.zip, https://snpeff.blob.core.windows.net/databases/v5_0/snpEff_v5_0_Pseudomonas_aeruginosa_ucbpp_pa14.zip, https://snpeff.blob.core.windows.net/databases/v5_1/snpEff_v5_1_Pseudomonas_aeruginosa_ucbpp_pa14.zip]
+
+Going to use Pseudomonas_aeruginosa_ucbpp_pa14, as UCBPP PA14 is the reference genome I have used
+trying to annotate with java -Xmx8g -jar ~/bin/snpEff/snpEff.jar -v Pseudomonas_aeruginosa_ucbpp_pa14 0001.vcf > annotated_PA14OrhlAGMR_variants.vcf
+This gives a "chromosome not found" error, likely that the reference chromomsome name is not the same as in my .vcf file
+changed NC_008463.1 to Chromosome in .vcf file as reccomended here https://www.biostars.org/p/124885/
+
+ran java -Xmx8g -jar ~/bin/snpEff/snpEff.jar -v Pseudomonas_aeruginosa_ucbpp_pa14 0001.vcf > annotated_PA14OrhlAGMR_variants.vcf 
+gave WARNING_TRANSCRIPT_NO_START_CODON 8
+
+processed .vcf file in R to make a table which appears to make sense! saved locally
+
+
+
