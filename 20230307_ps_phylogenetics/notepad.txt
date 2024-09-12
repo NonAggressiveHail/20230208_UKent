@@ -256,8 +256,62 @@ install mysql
 running orthomcl
 step 5 says I want to use protein sequences, not nucleotides... should have read manual first!
 Now I need to see how to get these...
-decided to remove orthomcl from my orthomcl conda environment, as I don't want it to conflic
+decided to remove orthomcl from my orthomcl conda environment, as I don't want it to conflict
 may have accedentally removed some dependenceis like blast
 
+20240115
+changed script to now grab protein sequences instead of nucleotide
+realised I may have jumped the gun or grabbing the protein sequences together, as thats not really an input orthomcl wants
+instead I ran orthomclAdjustFasta on all proteomes, then filtered out bad proteins with orthomclFilterFasta
+Now I want to make a new script for an all-v-all blast of these proteins
+updated blast as new version auto-chooses best multi-threading mode
+submitted orthomcl_blast.slurm
+renamed orthomcl.sh to orthomcl_setup.sh
 
+20240117
+orthomcl_blast.slurm took about 2 days to run, and produced about 840G of output! Despite the orthomcl instructions
+asking for -m8 for the output, it also asks for a tab-delimited format. It appears -m8 has changed to seqalign at some point
+so I need to rerun with -m6 instead. Hopefully these are also smaller!
+Before resubmitting I also need to go through and compress some files
 
+20240119
+did some compression so now I am only using 196/1500G.
+Want to edit orthomcl_blast.slurm so that the array sleeps if it isn't doing the seqkit split step
+resubmitted, seems to be working correctly
+
+20240122
+orthomcl_blast_logs give message saying they're sleeping, then timeout. Why didnt they say echo "$(date): Starting blastp on array ${SLURM_ARRAY_TASK_ID}"?
+30 output files were made so that seems to be correct. Only about ~84G output this time so perhaps -m6 is smaller
+
+20240105
+looks like blast run completed, but now looking at orthmcl instructions (https://www.biostars.org/p/120773/) it looks like I 
+didn't do the final configuration step
+got an error trying to do it, need to fix it before proceeding!
+
+20240520
+In discussion with Marta we came up with a new approach:
+~ Predict genes with prokka
+~ Annotate genes with blast or jackhmmer
+~ Concatenate the pyoverdine biosynthesis genes together, ensuring the same order across genomes
+~ align the concatenated genes
+~ make phylogenetic tree, and annotate with known pyoverdine types
+
+Hopefully this will give us 3 nice clades of each siderotype! If we get a poor delinitation we may need to return to the orthoMCL method, but 
+if we get no clustering at all then we may want to rething the approach entirely.
+
+I have done some of these steps already, but I clearly haven't kept very good notes! 
+~ Predict genes with prokka                      -> 20230817_prokka.slurm
+~ annotate with blast                            -> 20230831_blast.slurm
+~ annotate with jackhmmer                        -> 20230713_jackhmmer.slurm
+~ annotate loci                                  -> jackhmmer_compiler.R      NB this is necissary as some loci have multiple annotations with jackhmmer
+~ annotate loci                                  -> blast_compliler.R         NB this is necissary as some loci have multiple annotations with blast
+~ make list of loci which are siderophore genes  -> loci_collector.R
+~ pull out siderophe biosynthesis gene sequences -> orthomcl_setup.R
+~ concatenate sequences in order                 -> ?
+~ MSA sequences                                  -> ?
+~ make phylogenetic tree                         -> 20230929_IQtree.slurm
+
+Because I have quite a jumble of old scripts back from when I did pangenomics, I think this should be started again
+in a new directory and everything re-run to ensure it actually works. I'll take better notes this time!
+
+Made a new directory and notebook, and started working in there instead

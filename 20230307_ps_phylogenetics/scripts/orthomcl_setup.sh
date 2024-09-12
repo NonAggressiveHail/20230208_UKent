@@ -153,7 +153,7 @@ echo
 #
 #echo "Script complete"
 
-# Run Orthomcl
+# Setup for Orthomcl
 ## Ensure fasta files are compliant
 ### Genate file with a 3 digit code for each bacteria
 
@@ -197,5 +197,5 @@ cd ${out_dir}
 orthomclFilterFasta ./compliantFasta 10 20 
 cd -
 
-
+echo 
 
