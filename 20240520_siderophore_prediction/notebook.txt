@@ -483,3 +483,1479 @@ raw_data/genomes/pgdb_complete_aeruginosa/Pa_PAO1_107.fna ../../raw_data/genomes
 this is all very confusing!
 Mauve has a "reorder contigs" option https://darlinglab.org/mauve/user-guide/reordering.html which will also flip orientations
 ~ It may be I use this to flip them all to the same orientation, then use roatate to rotate them all to same start point?
+
+20240912
+Asked for help on reddit (https://www.reddit.com/r/bioinformatics/comments/1fedqj0/orienting_bacterial_genomes/), suggestion of dnaapler (https://github.com/gbouras13/dnaapler) appears to be excellent, lets try and get it working
+~ installed with conda install -c bioconda dnaapler in siderophore_misc
+~ ran time dnaapler all -i Pa_PAO1_107.fna -t 4 -f
+~~ took 12m53s "user" time
+
+Made dnaapler.slurm submission script from prokka.slurm, and submitted
+
+Now to repair the pgdb gbk file...
+~ deleted entreies with /codon_start=NA
+~ made custom gbk files for sip and aes from https://www.ncbi.nlm.nih.gov/nuccore/AY765261.1 and https://www.ncbi.nlm.nih.gov/nuccore/AY765263.1 respectively
+~ combined with prokka-genbank_to_fasta_db Pa_PAO1_107_annotations.gbk aes.gbk sip.gbk > siderophore_annotations.db
+~ gave no errors, now need to confirm that all the genes I need are in that file, and then rerun once re-orientation is complete!
+
+Ran prokka overnight
+
+20240913
+ran prokka_summarise.R
+moved summary file to local PC for analysis 
+
+Cant find any references to SIP? 
+"ompQ"   "pvdM"   "pvdI"   "fpvG"   "fpvH"   "fpvJ"   "fpvK"   "fpvC"   "fpvD"   "fpvE"  
+"fpvF"   "PA2411" "PA2412" "pvdY"   "pvdX"   "AES"    "SIP"  all seem to be missing from PAO1_107
+~ OmpQ and pvdM are not in Pa_PAO1_107_annotations.gbk (from PGDB)
+~ not in refseq_PAO1_annotations.gb (from refseq) either...
+~ Where did I get there sequences from?
+~ The protein_refseq I have for ompQ is NP_251080.1, but that links to the pvdT entry 
+~ Protein refseq for pvdM is NP_251083.1
+~~ Search in PGDB for this gives entry for PA2393
+~~ PA2393 is in refseq_PAO1_annotations.gb
+~~ Entry is:
+     gene            2648626..2649972
+                     /locus_tag="PA2393"
+                     /db_xref="GeneID:882216"
+     CDS             2648626..2649972
+                     /locus_tag="PA2393"
+                     /note="'Product name confidence: class 3 (Function
+                     proposed based on presence of conserved amino acid motif,
+                     structural feature or limited sequence similarity to an
+                     experimentally studied gene)'"
+                     /codon_start=1
+                     /transl_table=11
+                     /product="dipeptidase"
+                     /protein_id="NP_251083.1"
+                     /db_xref="GeneID:882216"
+                     /translation="MTRTRTRKALYLGLPIFLILVGGGLLAWKTFGPSEAGYPRKVMK
+~~ PA2393 not in siderophore_annotation.db
+~~ However "MTRTRTRKALYLGLPIFLILVGGGLLAWKTFGPSEAGYPRKVMK" is present, full entry:
+>NP_251083.1 ~~~~~~putative dipeptidase
+MTRTRTRKALYLGLPIFLILVGGGLLAWKTFGPSEAGYPRKVMKHAEELHERILSFDSRI
+TIPPDFGTEGNEFDKDGPNQLDLVKAGRGRLSGAALAIFGWPEMWNGPNAPHKPTPGFVD
+EARHQQEIRYKILTGMVRDFPNQVGIAYSPEDFRRLAMEGKFAIVMSMLNAYPLGDDLSQ
+LDKWAARGVRMFGFNYVGNNDWSDSSRPLPFFNDTADALGGLSPLGKQAVERLNDLGVII
+~~ NP_251083.1 is not in Pa_PAO1_107.faa
+~~ putative dipeptidase is there once:
+>Pa_PAO1_107_02466 putative dipeptidase
+MTRTRTRKALYLGLPIFLILVGGGLLAWKTFGPSEAGYPRKVMKHAEELHERILSFDSRI
+TIPPDFGTEGNEFDKDGPNQLDLVKAGRGRLSGAALAIFGWPEMWNGPNAPHKPTPGFVD
+EARHQQEIRYKILTGMVRDFPNQVGIAYSPEDFRRLAMEGKFAIVMSMLNAYPLGDDLSQ
+LDKWAARGVRMFGFNYVGNNDWSDSSRPLPFFNDTADALGGLSPLGKQAVERLNDLGVII
+DVSQMSTKALEQVAALSRAPIVASHSAPRALVDIKRNLSDHEMQLIKDSGGVIQVVGFPA
+YLRPLSKPTLDKLNALRARFDLPPLEGLDYALMPGDPIITIWPEQRFGEYASALYGILEE
+EPKAGLKELVDAIDYTVKKVGIDHVGISSDFNDGGGVDGWKDVSEIRNVTAELITRGYSD
+ADIAKLWGGNFLRAWGEVQKRAKPTATP
+~~~ A seperate issue appears to be that it is much larger...
+~~ It Pa_PAO1_107_02466 is in Pa_PAO1_107.gff but entry lacks a "gene" field, likely as the entry in refseq_PAO1_annotations.gb lacks a "gene" field. I need to check all of the entries to see if they have a "gene" field as this may be why they're missing
+~~ Also opmQ is misepelt as ompQ
+
+Lets check them all to confirm
+gene   In_Pa_PAO1_107.gff   gene_field_in_              Protein_refseq Name_in_PGDB Action
+                            Pa_PAO1_107_annotations.gbk 
+pvdQ   Yes                  Yes
+pvdA   Yes                  Yes
+fpvI   Yes                  Yes
+fpvR   Yes                  Yes
+pvdR   Yes                  Yes
+pvdT   Yes                  Yes 
+opmQ   Yes                  Yes
+pvdP   Yes                  Yes
+pvdM   No                   No                          NP_251083.1    PA2393      Added /gene="pvdM"
+pvdN   Yes                  Yes
+pvdO   Yes                  Yes
+pvdF   Yes                  Yes
+pvdE   Yes                  Yes
+fpvA   Yes                  Yes
+pvdD   Yes                  Yes
+pvdJ   Yes                  Yes
+pvdI   Yes                  Yes
+fpvG   Yes                  Yes
+fpvH   Yes                  Yes
+fpvJ   Yes                  Yes    
+fpvK   Yes                  Yes
+fpvC   Yes                  Yes
+fpvD   Yes                  Yes
+fpvE   Yes                  Yes
+fpvF   Yes                  Yes
+PA2411 No                   No                         NP_251101.1    PA2411      Added /gene="PA2411"
+PA2412 No                   No                         NP_251102.1    PA2412      Added /gene="PA2412"
+pvdH   Yes                  Yes
+pvdL   Yes                  Yes
+pvdG   Yes                  Yes
+pvdS   Yes                  Yes
+pvdY   No                   No                         NP_251117.1    PA2427      Added /gene="pvdY"
+pvdX   No                   No                         NP_251118.1    PA2428      Added /gene="pvdX"
+
+pvdM, PA2411, PA2112, pvdY, and pvdX are all missing from "gffs" in R as they are not in Pa_PAO1_107_annotations.gbk,
+that should be fixed by the addition of the "gene" field in Pa_PAO1_107_annotations.gbk
+
+pvdI, fpvG, fpvH, fpvJ, fpvK, fpvC, fpvD, fpvE, fpvF are still missing despite being in the gff file, something wrong in prokka_summrise.R?
+Gene In_"attributes"_field In_output_file
+pvdI Yes                   Yes
+fpvG Yes                   Yes (as _1 and _2)
+fpvH Yes                   Yes
+fpvJ Yes                   Yes
+fpvK Yes                   Yes
+fpvC Yes                   Yes
+fpvD Yes                   Yes
+fpvE Yes                   Yes
+fpvF Yes                   Yes
+
+This is correct then...
+
+Gene In_"query_metadata"   In_all_loci In_compiled_gffs.csv In_compiled_gffs.csv
+                                       on_cluster           locally
+pvdI Yes                   No          Yes                  No
+fpvG Yes                   No
+fpvH Yes                   No
+fpvJ Yes                   No
+fpvK Yes                   
+fpvC Yes                   
+fpvD Yes                   
+fpvE Yes                   
+fpvF Yes                   
+
+Perhaps file didnt copy properly from cluster to locally, recopied
+Its now there!
+
+reran prokka-genbank_to_fasta_db Pa_PAO1_107_annotations.gbk aes.gbk sip.gbk > siderophore_annotations.db
+~ resubmitted prokka.slurm
+
+After completion resubmitted orthoFinder.slurm
+~ status completed after 1-02:46:48
+
+20240916
+Checking DnaApler was correct
+~ Every bacteria has one instance of DnaA
+~ 331/646 have it as the first locus
+~~ Pa_RIVM_EMC2982_6088 has it a locus 06962, lets see why
+~~ 06962 is the last locus, so its probably in the wrong orientation?
+~~~ DnaApler guide says it:
+~~~~ finds the desired start gene using blastx against an amino acid sequence database
+~~~~ checks that the start codon of this gene is found
+~~~~ reorients the chromosome to begin with this gene on the forward strand
+~~~ So it should have also flipped the genome
+~~~ I ran dnaapler all, which "Reorients 1 or more contigs to begin with any of dnaA, terL, repA or COG1474", perhaps one of the others is at the start?
+~~~~ Pa_RIVM_EMC2982_6088 has rnpA at the start, not one of these
+~~~ Dnaapler log file say that dnaA was found on the reverse strand, at base 7379471/7380063, so clearly towars the end, no other hits were found
+~~~ Looking in prokka.slurm I see fasta files were found in ../raw_data/genomes/pgdb_complete_aeruginosa, this should be ../data/oriented_genomes!
+
+Deleted prokka outputs
+edited prokka.slurm to submit an array of 20 jobs of 25 files instead of 10 jobs of 50
+Resubmitted prokka.slurm
+
+Looking at OrthoFinder results
+~ it says in log file "Writing orthogroups to file
+---------------------------
+OrthoFinder assigned 2850632 genes (99.9% of total) to 14254 orthogroups. Fifty percent of all genes were in orthogroups with 464 or more genes (G50 was 464) and were contained in the largest 2992 orthogroups (O50 was 2992). There were 2993 orthogroups with all species present and 2044 of these consisted entirely of single-copy genes."
+~ this is great, however in the next section it has loads of python errors!
+
+2024-09-14 16:44:40 : Done orthogroups
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/bin/scripts_of/__main__.py", line 1790, in main
+    GetOrthologues(speciesInfoObj, options, prog_caller)
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/bin/scripts_of/__main__.py", line 1550, in GetOrthologues
+    orthologues.OrthologuesWorkflow(speciesInfoObj.speciesToUse,
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/bin/scripts_of/orthologues.py", line 1007, in OrthologuesWorkflow
+    spTreeFN_ids, qSTAG = db.RunAnalysis(userSpeciesTree == None)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/bin/scripts_of/orthologues.py", line 455, in RunAnalysis
+    ogs, ogMatrices_partial = self.GetOGMatrices_FullParallel()
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/bin/scripts_of/orthologues.py", line 299, in GetOGMatrices_FullParallel
+    ogMatrices = [[mp.Array('d', n, lock=False) for _ in range(n)] for n in nGenes]
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/lib/python3.12/multiprocessing/context.py", line 141, in Array
+    return Array(typecode_or_type, size_or_initializer, lock=lock,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/lib/python3.12/multiprocessing/sharedctypes.py", line 88, in Array
+    obj = RawArray(typecode_or_type, size_or_initializer)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/lib/python3.12/multiprocessing/sharedctypes.py", line 61, in RawArray
+    obj = _new_value(type_)
+          ^^^^^^^^^^^^^^^^^
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/lib/python3.12/multiprocessing/sharedctypes.py", line 41, in _new_value
+    wrapper = heap.BufferWrapper(size)
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/lib/python3.12/multiprocessing/heap.py", line 331, in __init__
+    block = BufferWrapper._heap.malloc(size)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/lib/python3.12/multiprocessing/heap.py", line 309, in malloc
+    (arena, start, stop) = self._malloc(size)
+                           ^^^^^^^^^^^^^^^^^^
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/lib/python3.12/multiprocessing/heap.py", line 192, in _malloc
+    return self._new_arena(size)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/lib/python3.12/multiprocessing/heap.py", line 166, in _new_arena
+    arena = Arena(length)
+            ^^^^^^^^^^^^^
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/lib/python3.12/multiprocessing/heap.py", line 83, in __init__
+    self.fd, name = tempfile.mkstemp(
+                    ^^^^^^^^^^^^^^^^^
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/lib/python3.12/tempfile.py", line 357, in mkstemp
+    return _mkstemp_inner(dir, prefix, suffix, flags, output_type)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/lib/python3.12/tempfile.py", line 256, in _mkstemp_inner
+    fd = _os.open(file, flags, 0o600)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Analysing Orthogroups
+=====================
+
+Calculating gene distances
+--------------------------
+[Errno 24] Too many open files: '/dev/shm/pym-1486040-2glyc_l5'
+Traceback (most recent call last):
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder", line 7, in <module>
+    main(args)
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/bin/scripts_of/__main__.py", line 1790, in main
+    GetOrthologues(speciesInfoObj, options, prog_caller)
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/bin/scripts_of/__main__.py", line 1550, in GetOrthologues
+    orthologues.OrthologuesWorkflow(speciesInfoObj.speciesToUse,
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/bin/scripts_of/orthologues.py", line 1007, in OrthologuesWorkflow
+    spTreeFN_ids, qSTAG = db.RunAnalysis(userSpeciesTree == None)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/bin/scripts_of/orthologues.py", line 455, in RunAnalysis
+    ogs, ogMatrices_partial = self.GetOGMatrices_FullParallel()
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/bin/scripts_of/orthologues.py", line 299, in GetOGMatrices_FullParallel
+    ogMatrices = [[mp.Array('d', n, lock=False) for _ in range(n)] for n in nGenes]
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/lib/python3.12/multiprocessing/context.py", line 141, in Array
+    return Array(typecode_or_type, size_or_initializer, lock=lock,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/lib/python3.12/multiprocessing/sharedctypes.py", line 88, in Array
+    obj = RawArray(typecode_or_type, size_or_initializer)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/lib/python3.12/multiprocessing/sharedctypes.py", line 61, in RawArray
+    obj = _new_value(type_)
+          ^^^^^^^^^^^^^^^^^
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/lib/python3.12/multiprocessing/sharedctypes.py", line 41, in _new_value
+    wrapper = heap.BufferWrapper(size)
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/lib/python3.12/multiprocessing/heap.py", line 331, in __init__
+    block = BufferWrapper._heap.malloc(size)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/lib/python3.12/multiprocessing/heap.py", line 309, in malloc
+    (arena, start, stop) = self._malloc(size)
+                           ^^^^^^^^^^^^^^^^^^
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/lib/python3.12/multiprocessing/heap.py", line 192, in _malloc
+    return self._new_arena(size)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/lib/python3.12/multiprocessing/heap.py", line 166, in _new_arena
+    arena = Arena(length)
+            ^^^^^^^^^^^^^
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/lib/python3.12/multiprocessing/heap.py", line 83, in __init__
+    self.fd, name = tempfile.mkstemp(
+                    ^^^^^^^^^^^^^^^^^
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/lib/python3.12/tempfile.py", line 357, in mkstemp
+    return _mkstemp_inner(dir, prefix, suffix, flags, output_type)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/shared/home/jgh8/miniconda3/envs/orthofinder/lib/python3.12/tempfile.py", line 256, in _mkstemp_inner
+    fd = _os.open(file, flags, 0o600)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: [Errno 24] Too many open files: '/dev/shm/pym-1486040-2glyc_l5'
+
+Some discussion here https://github.com/davidemms/OrthoFinder/issues/384
+~ apparenely I will need approzimately 464^2 + 50 files (215346)
+~ ulimit -Hn shows hard limit is 262144, with 46798 spare files
+~ ulimit -Sn shows soft limit is 1024, far too low
+~ ran ulimit -n 262144 to increase soft limit
+~~ ulimit -Sn now shows 262144, so potentially fixed the issue
+~~ Logging into a node with salloc showd ulimit -Sn still gives 262144
+~ Need to resubmit once prokka has finished, but for now lets try and see if I have had the rightoutputs
+
+In any event it seems like results I need are in Orthogroups.tsv
+
+
+Confirm that each PAO1 gene is now in PAO1
+~ apparently "pvdM"   "PA2411" "PA2412" "pvdY"   "pvdX"   "aes" are all missing still...
+~ annotation file was ../raw_data/genomes/siderophore_annotations.db
+Gene   in_PAO1 in_db in_output.gff
+pvdM   Yes     Yes   Yes
+PA2411 Yes     Yes   Yes
+PA2412 Yes     Yes   No
+pvdY   Yes     No    No
+pvdX   Yes     No    No
+aes    No      Yes   No
+~ realised i forgot to rerun prokka summarise, which is why pvdM and PA2411 are not in R
+~ but why isn't PA2412, pvdY, or pvdX in PAO1?
+
+Gene   db_entry                                                 Sequence
+PA2411 >NP_251101.1 ~~~PA2411~~~probable thioesterase           MGGTPVRLFCLPYSGASAMTYSRWRRKLPAWLAVRPVELPGRGARMAEPLQTDLASLAQQLARELHDEVRQGPYAMLGHSLGALLACEVLYALRELGCPTPLGFFACGTAAPSRRAEYDRGFAEPKSDAELIADLRDLQGTPEEVLGNRELMSLTLPILRADFLLCGSYRHQRRPPLACP
+IRTLGGREDKASEEQLLAWAEETRSGFELELFDGGHFFIHQREAEVLAVVECQVEAWRAGQGAAALAVESAAIC
+PA2412 >NP_251102.1 ~~~PA2412~~~conserved hypothetical protein  MTSVFDRDDIQFQVVVNHEEQYSIWPEYKEIPQGWRAAGKSGLKKDCLAYIEEVWTDMRPLSLRQHMDKAAG
+
+grep "NP_251102.1" Pa_PAO1_107_reoriented.fasta.gff gives NC_002516.2_chromosome  Prodigal:002006 CDS     2694064 2694282 .       -       0       ID=Pa_PAO1_107_reoriented.fasta_02485;inference=ab initio prediction:Prodigal:002006,similar to AA sequence:siderophore_annotations.db:NP_251102.1
+;locus_tag=Pa_PAO1_107_reoriented.fasta_02485;note=conserved hypothetical protein;product=hypothetical protein
+~ but why hadsn't this pulled accross the gene field?
+
+grep -n "MTSVFDRDD" Pa_PAO1_107_reoriented.fasta.faa shows a match: 
+>Pa_PAO1_107_reoriented.fasta_02485 hypothetical protein
+MTSVFDRDDIQFQVVVNHEEQYSIWPEYKEIPQGWRAAGKSGLKKDCLAYIEEVWTDMRPLSLRQHMDKAAG
+~ this is an identical match to PA2412, so why isn't it annotated as it? 
+
+Prokka error file says 5672 proteins have invalid IDs!
+~ https://github.com/tseemann/prokka/issues/77 shows that this is only from the step which makes the .sqn file, and only regards what NCBI considers to be an invalid error. Not worth worrying about
+
+Pa_PAO1_107_annotations.gbk entry for PA2411 is
+     gene            complement(2693781..2694545)
+                     /gene="PA2411"
+                     /locus_tag="PA2411"
+                     /db_xref="Pseudomonas Genome DB: PGD107600"
+     CDS             complement(2693781..2694545)
+                     /gene="PA2411"
+                     /locus_tag="PA2411"
+                     /product="probable thioesterase"
+                     /codon_start=1
+                     /translation_table=11
+                     /translation="MGGTPVRLFCLPYSGASAMTYSRWRRKLPAWLAVRPVELPGRGAR
+                     MAEPLQTDLASLAQQLARELHDEVRQGPYAMLGHSLGALLACEVLYALRELGCPTPLGF
+                     FACGTAAPSRRAEYDRGFAEPKSDAELIADLRDLQGTPEEVLGNRELMSLTLPILRADF
+                     LLCGSYRHQRRPPLACPIRTLGGREDKASEEQLLAWAEETRSGFELELFDGGHFFIHQR
+                     EAEVLAVVECQVEAWRAGQGAAALAVESAAIC"
+                     /protein_id="NP_251101.1"
+
+Pa_PAO1_107_annotations.gbk entry for PA2412 is 
+     gene            complement(2694546..2694764)
+                     /gene="PA2412"
+                     /locus_tag="PA2412"
+                     /db_xref="Pseudomonas Genome DB: PGD107602"
+     CDS             complement(2694546..2694764)
+                     /gene="PA2412"
+                     /locus_tag="PA2412"
+                     /product="conserved hypothetical protein"
+                     /codon_start=1
+                     /translation_table=11
+                     /translation="MTSVFDRDDIQFQVVVNHEEQYSIWPEYKEIPQGWRAAGKSGLKK
+                     DCLAYIEEVWTDMRPLSLRQHMDKAAG"
+                     /protein_id="NP_251102.1"
+
+Pa_PAO1_107_reoriented.fasta.gbk entry for PA2411 is 
+     CDS             complement(2693299..2694063)
+                     /gene="PA2411"
+                     /locus_tag="Pa_PAO1_107_reoriented.fasta_02484"
+                     /inference="ab initio prediction:Prodigal:002006"
+                     /inference="similar to AA
+                     sequence:siderophore_annotations.db:NP_251101.1"
+                     /codon_start=1
+                     /transl_table=11
+                     /product="putative thioesterase"
+                     /translation="MGGTPVRLFCLPYSGASAMTYSRWRRKLPAWLAVRPVELPGRGA
+                     RMAEPLQTDLASLAQQLARELHDEVRQGPYAMLGHSLGALLACEVLYALRELGCPTPL
+                     GFFACGTAAPSRRAEYDRGFAEPKSDAELIADLRDLQGTPEEVLGNRELMSLTLPILR
+                     ADFLLCGSYRHQRRPPLACPIRTLGGREDKASEEQLLAWAEETRSGFELELFDGGHFF
+                     IHQREAEVLAVVECQVEAWRAGQGAAALAVESAAIC"
+
+Pa_PAO1_107_reoriented.fasta.gbk entry for suspected PA2411 is 
+     CDS             complement(2694064..2694282)
+                     /locus_tag="Pa_PAO1_107_reoriented.fasta_02485"
+                     /inference="ab initio prediction:Prodigal:002006"
+                     /inference="similar to AA
+                     sequence:siderophore_annotations.db:Pa_PAO1_107"
+                     /note="conserved hypothetical protein"
+                     /codon_start=1
+                     /transl_table=11
+                     /product="hypothetical protein"
+                     /translation="
+                     KDCLAYIEEVWTDMRPLSLRQHMDKAAG"
+why does this not contain /gene?
+
+Ran prokka --outdir ./Pa_PAO1_107/ --prefix Pa_PAO1_107 --proteins ../../raw_data/genomes/siderophore_annotations.db --force --locustag Pa_PAO1_107 --cpus 8 ../oriented_genomes/Pa_PAO1_107/Pa_PAO1_107_reoriented.fasta to troubleshoot
+
+20240917
+advice on reddit was to try bakta for annotation, as prokka hasn't been update for a while
+installed in siderophore_misc with conda install -c conda-forge -c bioconda bakta
+make database with bakta_db download --type full
+updated amrfinder with amrfinder_update --force_update --database ./db
+added dbpath to ~/.bashrc
+Need deepsig for better signal peptide prediction, but installing with conda install -c bioconda deepsig into siderophore_misc has an unsolvable error
+Made new bakta environment
+conda updated with conda update -n base -c conda-forge conda
+Installed deepsig
+Re-installed bakta
+Test ran bakta with bakta --prefix Pa_PAO1_107 --locus-tag Pa_PAO1_107 --output ./Pa_PAO1_107 --force --complete --gram - --proteins ../../raw_data/genomes/siderophore_annotations.db --threads 8 ../../data/oriented_genomes/Pa_PAO1_107/Pa_PAO1_107_reoriented.fasta
+
+failed with user proteins file fasta format invalid
+had spaces in header names, removed with grep -c " " ../../raw_data/genomes/siderophore_annotations.db
+failed again...
+~ current header line is >NP_064721.1~~~dnaA~~~chromosomalreplicationinitiatorproteinDnaA
+~ suggested is >id gene~~~product~~~dbxrefs
+~ Can i just use the multiple gbk files? 
+~ bakta --prefix Pa_PAO1_107 --locus-tag Pa_PAO1_107 --output ./Pa_PAO1_107 --force --complete --gram - --proteins ../../raw_data/genomes/Pa_PAO1_107_annotations.gbk --proteins ../../raw_data/genomes/aes.gbk --proteins ../../raw_data/genomes/sip.gbk
+--threads 8 ../../data/oriented_genomes/Pa_PAO1_107/Pa_PAO1_107_reoriented.fasta 
+~~ said use GenBank format not valid 
+~ using only --proteins ../../raw_data/genomes/Pa_PAO1_107_annotations.gbk did work
+~~ took 14 minutes real, 46m user 
+~ using only --proteins ../../raw_data/genomes/aes.gbk failed
+~ using only --proteins ../../raw_data/genomes/sip.gbk failed 
+
+20240918
+Re-downloading the aes and sip gbk files
+~ downloaded sip (Genbank (full)) from https://www.ncbi.nlm.nih.gov/nuccore/AY765261.1?report=gbwithparts&log$=seqview&from=38126&to=39079
+~ downloaded aes (Genbank (full)) from https://www.ncbi.nlm.nih.gov/nuccore/AY765263.1?report=gbwithparts&log$=seqview&from=19194&to=20159
+
+Ran bakta with only --proteins ../../raw_data/genomes/aes.gb
+~ proteins file GenBank format not valid!
+~~ deleted "source" section, newline at end of file, and extra lines in "organism"
+~ copied header section and an example gen from Pa_PAO1_107_annotations.gbk, then copied the aes information in
+~~ didn't work
+~ copied Pa_PAO1_107_annotations.gbk, and deleted all information aside from /gene"lptA"
+~~ says "user protein sequences 1"
+~~ didn't fail and progressed to pseudogenes!
+~~ copied aes gene and cds features across
+~~~ now says user protein sequences 0!
+~~ reverted to only having /gene="lptA"
+~~~ user protein sequences = 1
+~~~ changed /gene to "aes"
+~~~~ user protein sequences = 1
+~~~ changed /translation
+~~~~ user proteins sequences = 0, perhaps this is the issue? lets try changing the rest
+~~ changed protein ID, deleted locus_tag
+~~~ file not valid!
+~~ readded locus_tag, changed to NA
+~~~ protein sequences = 1
+~~ changed product to "Aes"
+~~~ protein sequences = 1
+~~ deleted db_xref
+~~~ protein sequences = 1
+~~ changed co-ordinates and translation
+~~~ user protein sequenes = 0 
+~~ restord co-ordinates and translation, changed ORIGIN
+~~~ debug mode says BiopythonParserWarning: Expected sequence length 6264404, found 966 (NC_002516.2)
+~~ changed locus, length, accession, and version
+~~~ protein sequences = 1 
+~~ changed translation and co-ordinates
+~~~ user protein sequences: 0
+~~~ reverted, but still cant tell why this means it doesnt detect the protein!
+~ now i found debug mode lets try the original file again
+~~ still invalid....
+~ reran prokka-genbank_to_fasta_db Pa_PAO1_107_annotations.gbk aes.gb sip.gb > siderophore_annotations.db
+~~ ran bakta using this to see if errors occur
+~~~ simply says not valid
+~ ran prokka-genbank_to_fasta_db Pa_PAO1_107_annotations.gbk > siderophore_annotations.db
+~~ also not valid, so prokka-genbank_to_fasta_db probably isnt suitable 
+~ downloaded complete record (Genbank) from https://www.ncbi.nlm.nih.gov/nuccore/AY765263.1
+~~ format still not valid
+~ try making a fasta file by hand
+~~ >AAX16359.1 aes~~~aes~~~NA 
+MALNPDIAAYLELVGNGRSSGKSLPMHQLTVQQAREQFDQSSALMDPGLDEPLARVETLF
+VPARDGTPLPARLYSPQGLSASPPLPGVLYLHGGGYVVGSLDSHDALCASLAERAGCVVL
+SLAYRLAPEWRFPTAAEDAEDAWCWLAAEAARLGIDPQRLAVAGDSVGGSLCAVLSHRLAL
+RGEASQPRLQVLIYPVTDASRTHQSIERYAVGHLLEKDSLEWFYQHYQRSPEDRQDPRFS
+PLLGVVPADLAPTLLLVAECDPLHDEGIAYAEHLRQGGARVELCVYPGMTHDFLRMGAIV
+DEADDAKDMIADALVAALAT was not valid
+~~ >id msp~~~my special protein~~~VFDB:VF0511
+MAQ is valid but gives 0 proteins
+~~ added aes translation, still says 0 proteins
+~~ changed ID to AAX16359.1, protein sequences 0
+~~ changed gene to aes, user proteins seuqnces 0
+~~ changed product to aes, user protein sequences 0
+~~ changed db_xref to <empty>, format not valid
+~~ changed db_xref to "", format valid but number of sequences is 0
+~~ chagned aes sequence to dnaA from PAO1, valid with 1 sequence!
+~~ ncbi blast returns https://www.ncbi.nlm.nih.gov/protein/WP_003116930.1, as an exact match, so the sequecne is valid surely?
+~~~ could use this genbank file perhaps?
+~~ changed aes sequence to WP_003116930.1, 0 sequences 
+~~ changed header to WP_003116930.1 info (>WP_003116930 aes~~~aes~~~CDD:400284) 0 sequences
+
+20240919
+Added a newline character to the end of aes.faa
+~ 0 proteins
+~ gunna put the dnaA back in, then change it line by line
+~~ idea, is it a minimum length?
+~~ confirmed dnaA gives proteins sequences 1
+~~ swapped line 1
+~~~ sequences = 1
+~~ swapped line 2
+~~~ proteins = 0 
+~~ trimmed to first line of aes + second line of dnaA
+~~~ proteins = 0, perhaps try trimming down dnaA next time?
+
+20240920
+Downloaded https://www.ncbi.nlm.nih.gov/nuccore/AY765263.1?report=fasta to run on a bit quicker
+~ also contains AES so can try and confirm it is detected 
+Re-ran dnaA sequence with  bakta --prefix AY7652631 --locus-tag AY7652631 --output ./AY765263.1_MSH_PVD_region --force --complete --gram - --proteins ../../raw_data/genomes/aes.faa --threads 12 --skip-trna --skip-tmrna --skip-rrna --skip-ncrna --skip-ncrna-region ../../raw_data/genomes/AY765263.1_MSH_PVD_region.fna  
+~ this did not work!
+~ now re-ran with aes sequence
+~ user proteins = 1!
+~ It appers that user proteins = the number of proteins found IN THE TARGET not the number provided in the file!
+
+Now need to confirm that it can handle multiple --proteins options
+~ ran bakta --prefix AY7652631 --locus-tag AY7652631 --output ./AY765263.1_MSH_PVD_region --force --complete --gram - --proteins ../../raw_data/genomes/aes.faa --proteins ../../raw_data/genomes/Pa_PAO1_107_annotations.gbk --threads 12 --skip-trna --skip-tmrna --skip-rrna --skip-ncrna --skip-ncrna-region ../../raw_data/genomes/AY765263.1_MSH_PVD_region.fna 
+~~ user protein sequnces = 8! so it has used both files!
+
+web blast search of sip sequence returned https://www.ncbi.nlm.nih.gov/protein/WP_033942591.1?report=genbank&log$=protalign&blast_rank=1&RID=EUGNK6WW013 as the refernce 
+~ downloaded and combined with aes to make sip and aes file
+~ added the nucleotide sequence from https://www.ncbi.nlm.nih.gov/nuccore/AY765261.1?report=fasta to the MSH sequence (https://www.ncbi.nlm.nih.gov/nuccore/AY765263.1?report=fasta), to make a test which contains both aes and sip
+~ ran bakta --prefix AY7652631 --locus-tag MSH_and_206-12 --output ./MSH_and_206-12 --force --complete --gram - --proteins ../../raw_data/genomes/aes_and_sip.faa --threads 12 --skip-trna --skip-tmrna --skip-rrna --skip-ncrna --skip-ncrna-region ../../raw_data/genomes/MSH_and_206-12_pvd_regions.fna
+~~ user protein sequences = 2 so both aes and sip sequences are working!
+~ ran bakta --prefix AY7652631 --locus-tag MSH_and_206-12 --output ./MSH_and_206-12 --force --complete --gram - --proteins ../../raw_data/genomes/aes_and_sip.faa --proteins ../../raw_data/genomes/Pa_PAO1_107_annotations.gbk --threads 12 --skip-trna --skip-tmrna --skip-rrna --skip-ncrna --skip-ncrna-region ../../raw_data/genomes/MSH_and_206-12_pvd_regions.fna
+~~ found 11 sequences so working correctly!
+
+Test run on PAO1 to check I get correct outputs
+~ ran bakta --prefix Pa_PAO1_107 --locus-tag Pa_PAO1_107 --output ./Pa_PAO1_107 --force --complete --gram - --proteins ../../raw_data/genomes/aes_and_sip.faa --proteins ../../raw_data/genomes/Pa_PAO1_107_annotations.gbk --threads 12 ../../data/oriented_genomes/Pa_PAO1_107/Pa_PAO1_107_reoriented.fasta
+~~ real time 23m
+~~ user time 82m
+~~ check that each of myquery sequences are present
+
+gene   count_in_Pa_PAO1_107.tsv   
+pvdQ   2                  
+pvdA   1
+fpvI   1
+fpvR   1
+pvdR   1
+pvdT   1
+opmQ   1
+pvdP   1
+pvdM   1
+pvdN   1
+pvdO   1
+pvdF   1
+pvdE   1
+fpvA   1
+pvdD   1
+pvdJ   1
+pvdI   1
+fpvG   1
+fpvH   1
+fpvJ   1
+fpvK   1
+fpvC   1
+fpvD   1
+fpvE   1
+fpvF   1
+PA2411 1
+PA2412 1
+pvdH   1
+pvdL   1
+pvdG   1
+pvdS   1
+pvdY   1
+pvdX   1
+aes    1
+sip    0
+
+This is to be expected so lets proceed!
+Created bakta.slurm from prokka.slurm and submitted
+
+Not sure if it is actually using multiple --proteins arguments correctly...
+Ran bakta --prefix AY7652631 --locus-tag MSH_and_206-12 --output ./MSH_and_206-12 --force --complete --gram - --proteins ../../raw_data/genomes/aes.faa --proteins ../../raw_data/genomes/sip.faa --threads 12 --skip-trna --skip-tmrna --skip-rrna --skip-ncrna --skip-ncrna-region ../../raw_data/genomes/MSH_and_206-12_pvd_regions.fna
+~ here https://github.com/tseemann/prokka/issues/500 shows that genbank files can simply been concatenated together and used as one, perhaps I can try that 
+~ gave user proteins = 1 when it should defo be 2
+
+Re-downloaded aes and sip gb files from ncbi, concatenated with PAO1 annotations, and submitted before testing
+
+20240924
+Job failed as user porteins file GenBank format not valid
+Ran bakta --prefix AY7652631 --locus-tag MSH_and_206-12 --output ./MSH_and_206-12 --force --complete --gram - --proteins ../../raw_data/genomes/aes.gb --threads 12 --skip-trna --skip-tmrna --skip-rrna --skip-ncrna --skip-ncrna-region ../../raw_data/genomes/MSH_and_206-12_pvd_regions.fna
+~ genbank file format not valid
+
+Made new genbank file format from the first entry of Pa_PAO1_107_annotations.gb and copied sip info in
+~ user protein sequences 1!
+
+Duplicated, then copied in aes info less the origin segment
+~ user proteins sequences 2!
+
+Copied sip and aes into Pa_PAO1_107_annotations.gbk (Pa_PAO1_107_annotations_with_sip_aes.gbk)
+~ user proteins sequences 11! this appears correct!
+~ running just Pa_PAO1_107_annotations.gb also gave user proteins sequences 11, so perhaps not?
+~ need to re-run and compare outputs
+
+Ran bakta --prefix MSH_and_206-12 --locus-tag MSH_and_206-12 --output ./MSH_and_206-12_PAO1_annot --force --complete --gram - --proteins ../../raw_data/genomes/Pa_PAO1_107_annotations.gbk --threads 12 --skip-trna --skip-tmrna --skip-rrna --skip-ncrna --skip-ncrna-region ../../raw_data/genomes/MSH_and_206-12_pvd_regions.fna
+~ user proteins sequences 11
+
+Ran bakta --prefix MSH_and_206-12 --locus-tag MSH_and_206-12 --output ./MSH_and_206-12_PAO1_sip_aes_annot --force --complete --gram - --proteins ../../raw_data/genomes/Pa_PAO1_107_annotations_with_sip_aes.gbk --threads 12 --skip-trna --skip-tmrna --skip-rrna --skip-ncrna --skip-ncrna-region ../../raw_data/genomes/MSH_and_206-12_pvd_regions.fna
+~ user protein sequences 13, so lets re-submit bakta
+
+20240925
+Bakta finished by morning
+Lets check to see if Pa_PAO1_107.tsv contains everything I need
+
+gene   count_in_Pa_PAO1_107.tsv  count_in_Pa_PAO1_107_annotations.gbk
+pvdQ   2                         1
+pvdA   1                         1
+fpvI   1                         1
+fpvR   1                         1
+pvdR   1
+pvdT   1
+opmQ   1
+pvdP   1
+pvdM   1
+pvdN   1
+pvdO   1
+pvdF   1
+pvdE   1
+fpvA   1
+pvdD   1
+pvdJ   1
+pvdI   1
+fpvG   1
+fpvH   1
+fpvJ   1
+fpvK   1
+fpvC   1
+fpvD   1
+fpvE   1
+fpvF   1
+PA2411 1
+PA2412 1
+pvdH   1
+pvdL   1
+pvdG   1
+pvdS   1
+pvdY   1
+pvdX   1
+aes    1
+sip    0
+
+Expected genes have been predicted, however with an additional pvdQ and aes
+
+Made bakta_summarise.R from prokka_summarise.R
+~ only found 450 tsv files?
+~ 464 output folders have been made for bakta outputs
+
+Folders missing tsv files :
+ ../data/bakta/Pa_DK1_substr_NH57388A_6643
+../data/bakta/Pa_i_early_i_NN2_clone_C_6774
+../data/bakta/Pa_i_MINF_3A_sc_2280432_17341
+../data/bakta/Pa_i_MINF_7A_sc_2280434_17336
+../data/bakta/Pa_PcyII_29_i_PcyII_29_17327
+../data/bakta/Pa_PcyII_40_i_PcyII_40_17328
+../data/bakta/Pa_SCAID_PLC1_2021_16_222_16390
+../data/bakta/Pa_SCAID_TST_2021_7_157_16389
+../data/bakta/Pa_SCAID_WND1_2021_9_195_16388
+../data/bakta/Pa_ST1076_d100blood1_17072
+../data/bakta/Pa_ST1076_d100blood2_17081
+../data/bakta/Pa_ST1076_d118limb1_17071
+../data/bakta/Pa_St1076_d123blood_17070
+../data/bakta/Pa_USDA_ARS_USMARC_41639_3640
+
+Each of them have an invalid contig ID!, lets change that field so that it uses only the last set of digits, as that is the code for the organism. 
+
+Ran
+fasta_name=Pa_DK1_substr_NH57388A_6643
+bakta --output ./${fasta_name} --prefix ${fasta_name} --proteins ../../raw_data/genomes/Pa_PAO1_107_annotations_with_sip_aes.gbk --force --complete --gram - --keep-contig-headers --locus-tag ${fasta_name##*_} --threads 12 ../../data/oriented_genomes/Pa_DK1_substr_NH57388A_6643/Pa_DK1_substr_NH57388A_6643_reoriented.fasta
+~ appears to work correctly with the loci ID's in the format 6643_28825
+~ they appear to be incrementing in step of 5 though?
+
+Ran bakta --output ./${fasta_name}_2 --prefix ${fasta_name} --proteins ../../raw_data/genomes/Pa_PAO1_107_annotations_with_sip_aes.gbk --force --complete --gram - --keep-contig-headers --locus-tag ${fasta_name##*_} --locus-tag-increment 1 --threads 12 
+
+It appears that the default loci incrementation is 5? submitted a bug report 
+~ apparently this is expected and my version is out of synch with the one on github
+
+20240926
+Want to combine the hypothetical and annotated proteins together for orthofidner to use
+~ Pa_i_RW109_6944 does not have a hypothetical.faa?
+~~ also missing some other bits, lets re-run bakta just for that one
+~~ had pipe disconnect so re-ran again
+~~ Error message:
+export annotation results to: /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/bakta/Pa_i_RW109_6944
+        human readable TSV...
+        GFF3...
+        INSDC GenBank & EMBL...
+/shared/home/jgh8/miniconda3/envs/bakta/lib/python3.8/site-packages/Bio/SeqIO/InsdcIO.py:727: BiopythonWarning: Increasing length of locus line to allow long name. This will result in fields that are not in usual positions.
+  warnings.warn(
+        genome sequences...
+        feature nucleotide sequences...
+        translated CDS sequences...
+        circular genome plot...
+Traceback (most recent call last):
+  File "/shared/home/jgh8/miniconda3/envs/bakta/bin/bakta", line 10, in <module>
+    sys.exit(main())
+  File "/shared/home/jgh8/miniconda3/envs/bakta/lib/python3.8/site-packages/bakta/main.py", line 557, in main
+    plot.write_plot(features, contigs, cfg.output_path)
+  File "/shared/home/jgh8/miniconda3/envs/bakta/lib/python3.8/site-packages/bakta/plot.py", line 260, in write_plot
+    raise Exception(f'circos error! error code: {proc.returncode}')
+Exception: circos error! error code: 255
+
+20240927
+This may have some information on the error https://github.com/nf-core/pathogensurveillance/issues/29
+~ In that case, todo with having too many contigs. Not sure if thats what is happening here
+~ they may get past is by using --skip-plot
+~ also circos has its own log file which I could inspect
+
+Ran bakta --output ../data/bakta/Pa_i_RW109_6944 --prefix Pa_i_RW109_6944 --proteins ../raw_data/genomes/Pa_PAO1_107_annotations_with_sip_aes.gbk --force --complete --gram - --keep-contig-headers --locus-tag 6944 --threads 10 ../data/oriented_genomes/Pa_i_RW109_6944/Pa_i_RW109_6944_reoriented.fasta --debug
+~ didn't give any more info on the circos error
+~ ran with --skip-plot, gave no errors!
+~ /bakta/Pa_i_RW109_6944 seems to have the right stuff in it, less the circos plot
+
+Bakta_proteins_concat.sh ran without errors
+
+Submitted orthofinder.slurm
+
+20241007
+Ran bakta_summarise.R
+Downloaded orthogroups.tsv
+
+20241008
+Lets check copynumbers of DnaA in each genome
+~ 461 have one copy (great)
+~ 1 has 2 copies (Pa_SP4527_10694)
+~ 2 have 4 copies (Pa_B17932_10395, Pa_SP4528_9945)
+~ briefly reading around, I'm not sure if this matters? Its just the protein number and could be a missantation.
+
+What about location?
+444 begin with dnaA, and 20 start with dnaN
+~ dnaN: Pa_12939_6590, Pa_A39_1_15952, Pa_D_2_17309, Pa_D5_17118, Pa_F13_17305, Pa_NRD619_15844, Pa_PA0523_16678, Pa_PA8329_16687, Pa_PABL048_9601, Pa_PAC6_15562, Pa_PAG5_15448, Pa_PPF_1_6589, Pa_RD1_3_12124, Pa_SCAID_WND1_2021_9_195_16388, Pa_ST773_12047, Pa_TJ2014_049_15933, Pa_TJ2019_017_15932, Pa_TJ2019_022_15931, Pa_Y71_9532, Pa_YY322_16348
+~~ Examine Pa_12939_6590
+~~~ dnaA is locus 30805
+~~~ DnaApler log has two warnings
+~~~~ dnaapler.utils.processing:reorient_single_record_bulk:391 - The top blastx hit for the contig NZ_CP024477.1|chromosome did not begin with a valid start codon.
+~~~~ dnaapler.utils.processing:reorient_single_record_bulk:394 - Searching with pyrodigal for the CDS overlapping the most with the top blastx hit to reorient with
+~ DnaApler paper says if the blast hit for DnaA does not start with a valid start codon "then Pyrodigal will be used to predict all coding sequences. Dnaapler will calculate the CDS with the most overlap to the top blastx hit, and reorient the genome to begin with the start codon of that CDS in the forward direction"
+~ looking at DnaApler error logs:
+~~ 0 contain ERROR (grep --include=\*.log -Rnw ./ -e "ERROR" -c | grep ":0" -c)
+~~ 402 have 0 instances of "WARNING"
+~~ 50 contain 2 instances of "WARNING"
+./Pa_34Pae36_17110/dnaapler_1726139158.8229196.log:2
+./Pa_34Pae8_17112/dnaapler_1726139528.8817453.log:2
+./Pa_FAHZU31_16387/dnaapler_1726136866.885118.log:2
+./Pa_T2436_12051/dnaapler_1726137191.337426.log:2
+./Pa_AZPAE15042_11928/dnaapler_1726137522.2185514.log:2
+./Pa_CF39S_12907/dnaapler_1726140462.551206.log:2
+./Pa_PA298_11122/dnaapler_1726137850.3451364.log:2
+./Pa_AR_0230_6281/dnaapler_1726138128.978658.log:2
+./Pa_AR_0356_7083/dnaapler_1726138153.155025.log:2
+./Pa_SE5419_16352/dnaapler_1726138186.794685.log:2
+./Pa_AR_0111_9636/dnaapler_1726138481.494547.log:2
+./Pa_12939_6590/dnaapler_1726138520.9576156.log:2
+./Pa_AR439_6890/dnaapler_1726139788.6916769.log:2
+./Pa_AR441_6528/dnaapler_1726140144.3706744.log:2
+./Pa_PABL048_9601/dnaapler_1726140349.060175.log:2
+./Pa_SRRSH2790_16380/dnaapler_1726140414.2652147.log:2
+./Pa_SRRSH1002_16370/dnaapler_1726141029.7447484.log:2
+./Pa_SRRSH1408_16371/dnaapler_1726141372.320491.log:2
+./Pa_TL3773_16287/dnaapler_1726145028.326495.log:2
+./Pa_K34_7_7082/dnaapler_1726144795.2917616.log:2
+./Pa_NDTH10366_16373/dnaapler_1726142077.819867.log:2
+./Pa_PA1609_17102/dnaapler_1726142078.2803843.log:2
+./Pa_AR19438_17115/dnaapler_1726142369.8470898.log:2
+./Pa_E6130952_7221/dnaapler_1726142413.1853006.log:2
+./Pa_QZPH21_16383/dnaapler_1726142761.4967928.log:2
+./Pa_UNC_PaerCF34_16670/dnaapler_1726142780.8994296.log:2
+./Pa_H05_17033/dnaapler_1726144272.254533.log:2
+./Pa_IMP_13_10390/dnaapler_1726144445.0677292.log:2
+./Pa_HOU1_11979/dnaapler_1726144623.4858153.log:2
+./Pa_JNQH_PA027_16673/dnaapler_1726144796.80636.log:2
+./Pa_SCAID_WND1_2021_9_195_16388/dnaapler_1726145004.5211184.log:2
+./Pa_WTJH17_16112/dnaapler_1726145035.178773.log:2
+./Pa_H15_17026/dnaapler_1726149525.0279608.log:2
+./Pa_DN1_5583/dnaapler_1726146083.4124506.log:2
+./Pa_i_paerg000_11157/dnaapler_1726147167.0996702.log:2
+./Pa_QZPH16_16384/dnaapler_1726147717.0425286.log:2
+./Pa_PA83_6078/dnaapler_1726148433.9099689.log:2
+./Pa_CR1_6461/dnaapler_1726148644.3730023.log:2
+./Pa_i_KB_PA_3_16605/dnaapler_1726148683.7165027.log:2
+./Pa_PA59_12042/dnaapler_1726148704.1827078.log:2
+./Pa_ST773_12047/dnaapler_1726149371.6940465.log:2
+./Pa_WTJH12_16374/dnaapler_1726150181.4464889.log:2
+./Pa_R31_15858/dnaapler_1726150917.6144266.log:2
+./Pa_E167_17042/dnaapler_1726151112.6026487.log:2
+./Pa_NCCP15783_16712/dnaapler_1726151571.0231924.log:2
+./Pa_SRRSH1521_16381/dnaapler_1726151913.4341931.log:2
+./Pa_SRRSH1101_16369/dnaapler_1726152102.869008.log:2
+./Pa_T2101_12052/dnaapler_1726152235.3302877.log:2
+./Pa_LIUYANG_A_15590/dnaapler_1726152774.9005408.log:2
+./Pa_PAD8_17050/dnaapler_1726153084.3804705.log:2
+~~ Lets continue for now assuming this has no impact. It can always be re-run later
+
+20241009
+Orthofinder failed with the same open files error
+~  ulimit -Sn showed soft limit is back to 1024, perhaps todo with changing to faraday?
+~ Ran ulimit -n 262144
+~ need to troubleshoot this properly tomorrow, perhaps add to start of script? Orthofinder should also have a resume option somewhere
+
+20241015
+Found that some of the strains in doi:10.1099/00221287-143-1-35 have been sequenced! The 13 IATS strains they use have been shotgun sequenced and uploaded as BioProject PRJNA294638 I can analyse these as I know what siderotype they are!
+~ downloaded from https://www.ncbi.nlm.nih.gov/datasets/genome/?bioproject=PRJNA294638
+
+File names are the assembly accession, want to rename to be consistent with other PGDB files
+~ Format is: Pa_name_IDnumber
+~ renamed all the GenBank (GCA) assemblies according to this
+~ deleted the Refseq (GCF) assemblies, as they are identical to GenBank
+
+Now I want to orient contigs according to the oriented PAO1 I have
+~ downloaded mauve from https://darlinglab.org/mauve/snapshots/2015/2015-02-13/linux-x64/mauve_linux_snapshot_2015-02-13.tar.gz
+~ ran java -Xmx500m -cp ../programs/mauve_snapshot_2015-02-13/Mauve.jar org.gel.mauve.contigs.ContigOrderer -output ../data/oriented_genomes/Pa_ATCC_33350_331 -ref ../data/oriented_genomes/Pa_PAO1_107/Pa_PAO1_107_reoriented.fasta -draft ../raw_data/IATS_sequences/assemblies/GCA_001420205.1/Pa_ATCC_33350_3311.fna
+
+Output:
+ref file: org.gel.mauve.contigs.ContigMauveAlignFrame[panel0,0,0,400x383,invalid]
+shown
+Copying...
+        /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/scripts/../data/oriented_genomes/Pa_PAO1_107/Pa_PAO1_107_reoriented.fasta
+to
+        /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/scripts/../data/oriented_genomes/Pa_ATCC_33350_331/alignment1/Pa_PAO1_107_reoriented.fasta
+Copying...
+        /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/scripts/../raw_data/IATS_sequences/assemblies/GCA_001420205.1/Pa_ATCC_33350_3311.fna
+to
+        /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/scripts/../data/oriented_genomes/Pa_ATCC_33350_331/alignment1/Pa_ATCC_33350_3311.fna
+trying path ./linux-x64/progressiveMauve
+Running alignment.
+Executing
+  progressiveMauve
+    --output=/shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/scripts/../data/oriented_genomes/Pa_ATCC_33350_331/alignment1/alignment1
+    --skip-refinement
+    --weight=200
+    --output-guide-tree=/shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/scripts/../data/oriented_genomes/Pa_ATCC_33350_331/alignment1/alignment1.guide_tree
+    --backbone-output=/shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/scripts/../data/oriented_genomes/Pa_ATCC_33350_331/alignment1/alignment1.backbone
+    /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/scripts/../data/oriented_genomes/Pa_ATCC_33350_331/alignment1/Pa_PAO1_107_reoriented.fasta
+    /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/scripts/../data/oriented_genomes/Pa_ATCC_33350_331/alignment1/Pa_ATCC_33350_3311.fna
+Error running aligner.
+java.io.IOException: Cannot run program "progressiveMauve": error=2, No such file or directory
+        at java.base/java.lang.ProcessBuilder.start(ProcessBuilder.java:1143)
+        at java.base/java.lang.ProcessBuilder.start(ProcessBuilder.java:1073)
+        at java.base/java.lang.Runtime.exec(Runtime.java:594)
+        at java.base/java.lang.Runtime.exec(Runtime.java:453)
+        at org.gel.mauve.gui.AlignWorker.construct(Unknown Source)
+        at org.gel.mauve.gui.SwingWorker$2.run(Unknown Source)
+        at java.base/java.lang.Thread.run(Thread.java:840)
+Caused by: java.io.IOException: error=2, No such file or directory
+        at java.base/java.lang.ProcessImpl.forkAndExec(Native Method)
+        at java.base/java.lang.ProcessImpl.<init>(ProcessImpl.java:314)
+        at java.base/java.lang.ProcessImpl.start(ProcessImpl.java:244)
+        at java.base/java.lang.ProcessBuilder.start(ProcessBuilder.java:1110)
+        ... 6 more
+
+ran: export PATH=$PATH:~/20230208_UKent/20240520_siderophore_prediction/programs/mauve_snapshot_2015-02-13/
+~ didn't fix
+
+ran: export PATH=$PATH:~/20230208_UKent/20240520_siderophore_prediction/programs/mauve_snapshot_2015-02-13/linux-x64
+~ fixed! 
+
+Completed in < 1m
+~ it has output a file called Pa_ATCC_33350_3311.fna.fas, which appears to have the aligned contigs
+~ Pa_ATCC_33350_3311.fna_contigs.tab contains the info for how the contigs have been shifted 
+
+Lets make a loop to run through all of these
+~ completed 
+~ Pa_ATCC_33348_3312 has only done one alignment and not made the output fasta file
+~ both GCA_001444755.1 and GCA_001444765.1 were renamed to Pa_ATCC_33355_3320.fna
+~~ Pa_ATCC_33355_3320.fna folder deleted and needs to be re-run
+
+Re-run mauve_contig_reorder.sh as 3 did not give outputs 
+~ now all have outputs
+
+Submitted bakta.slurm
+
+20241018
+Check bakta ran correctly 
+~ find ../raw_data/IATS_sequences/assemblies -type f -name "*.fna" gives 20 results, so does *ATCC*
+../raw_data/IATS_sequences/assemblies/GCA_001420185.1/Pa_ATCC_33349_3310.fna
+../raw_data/IATS_sequences/assemblies/GCA_001420205.1/Pa_ATCC_33350_3311.fna
+../raw_data/IATS_sequences/assemblies/GCA_001420225.1/Pa_ATCC_33348_3312.fna
+../raw_data/IATS_sequences/assemblies/GCA_001420245.1/Pa_ATCC_33351_3313.fna
+../raw_data/IATS_sequences/assemblies/GCA_001420265.1/Pa_ATCC_33352_3314.fna
+../raw_data/IATS_sequences/assemblies/GCA_001444745.1/Pa_ATCC_33354_3318.fna
+../raw_data/IATS_sequences/assemblies/GCA_001444755.1/Pa_ATCC_33353_3319.fna
+../raw_data/IATS_sequences/assemblies/GCA_001444765.1/Pa_ATCC_33355_3320.fna
+../raw_data/IATS_sequences/assemblies/GCA_001444815.1/Pa_ATCC_33356_3321.fna
+../raw_data/IATS_sequences/assemblies/GCA_001444835.1/Pa_ATCC_33357_3322.fna
+../raw_data/IATS_sequences/assemblies/GCA_001444845.1/Pa_ATCC_33361_3323.fna
+../raw_data/IATS_sequences/assemblies/GCA_001444865.1/Pa_ATCC_33362_3324.fna
+../raw_data/IATS_sequences/assemblies/GCA_001444895.1/Pa_ATCC_33363_3326.fna
+../raw_data/IATS_sequences/assemblies/GCA_001444915.1/Pa_ATCC_33364_3326.fna
+../raw_data/IATS_sequences/assemblies/GCA_001444925.1/Pa_ATCC_43390_3327.fna
+../raw_data/IATS_sequences/assemblies/GCA_001444955.1/Pa_ATCC_33358_3328.fna
+../raw_data/IATS_sequences/assemblies/GCA_001444975.1/Pa_ATCC_33359_3329.fna
+../raw_data/IATS_sequences/assemblies/GCA_001444995.1/Pa_ATCC_33360_3330.fna
+../raw_data/IATS_sequences/assemblies/GCA_001445005.1/Pa_ATCC_43731_3332.fna
+../raw_data/IATS_sequences/assemblies/GCA_001445035.1/Pa_ATCC_43732_3332.fna
+~ find ../data/bakta/ -type d -name "*ATCC*" only gives 12 results
+../data/bakta/Pa_ATCC_15692_4007
+../data/bakta/Pa_ATCC_27853_3989
+../data/bakta/Pa_ATCC_27853_9518
+../data/bakta/Pa_ATCC_BAA_2108_17048
+../data/bakta/Pa_ATCC_BAA_2114_17047
+../data/bakta/Pa_ATCC_33349_3310
+../data/bakta/Pa_ATCC_33350_3311
+../data/bakta/Pa_ATCC_33351_3313
+../data/bakta/Pa_ATCC_33352_3314
+../data/bakta/Pa_ATCC_33354_3318
+../data/bakta/Pa_ATCC_33356_3321
+../data/bakta/Pa_ATCC_33357_3322 
+~ find ../data/oriented_genomes/ -type d -name "*ATCC*" gives 25 results
+../data/oriented_genomes/Pa_ATCC_15692_4007
+../data/oriented_genomes/Pa_ATCC_27853_3989
+../data/oriented_genomes/Pa_ATCC_27853_9518
+../data/oriented_genomes/Pa_ATCC_BAA_2108_17048
+../data/oriented_genomes/Pa_ATCC_BAA_2114_17047
+../data/oriented_genomes/Pa_ATCC_33348_3312
+../data/oriented_genomes/Pa_ATCC_33349_3310
+../data/oriented_genomes/Pa_ATCC_33350_3311
+../data/oriented_genomes/Pa_ATCC_33351_3313
+../data/oriented_genomes/Pa_ATCC_33352_3314
+../data/oriented_genomes/Pa_ATCC_33353_3319
+../data/oriented_genomes/Pa_ATCC_33354_3318
+../data/oriented_genomes/Pa_ATCC_33355_3320
+../data/oriented_genomes/Pa_ATCC_33356_3321
+../data/oriented_genomes/Pa_ATCC_33357_3322
+../data/oriented_genomes/Pa_ATCC_33358_3328
+../data/oriented_genomes/Pa_ATCC_33359_3329
+../data/oriented_genomes/Pa_ATCC_33360_3330
+../data/oriented_genomes/Pa_ATCC_33361_3323
+../data/oriented_genomes/Pa_ATCC_33362_3324
+../data/oriented_genomes/Pa_ATCC_33363_3326
+../data/oriented_genomes/Pa_ATCC_33364_3326
+../data/oriented_genomes/Pa_ATCC_43390_3327
+../data/oriented_genomes/Pa_ATCC_43731_3332
+../data/oriented_genomes/Pa_ATCC_43732_3332
+
+Strain                  annotated oriented bakta_log_file ran_correctly
+Pa_ATCC_33349_3310.fna  Y                  19.out         Y
+Pa_ATCC_33350_3311.fna  Y                  19.out         Exception: circos error! error code: 25
+Pa_ATCC_33348_3312.fna  N         Y        
+Pa_ATCC_33351_3313.fna  Y                  20.out         Y
+Pa_ATCC_33352_3314.fna  Y                  20.out         Exception: circos error! error code: 25
+Pa_ATCC_33354_3318.fna  Y                  20.out         Exception: circos error! error code: 25
+Pa_ATCC_33353_3319.fna
+Pa_ATCC_33355_3320.fna
+Pa_ATCC_33356_3321.fna  Y                  20.out         Exception: circos error! error code: 25
+Pa_ATCC_33357_3322.fna  Y                  20.out         Exception: circos error! error code: 25
+Pa_ATCC_33361_3323.fna
+Pa_ATCC_33362_3324.fna
+Pa_ATCC_33363_3326.fna
+Pa_ATCC_33364_3326.fna
+Pa_ATCC_43390_3327.fna
+Pa_ATCC_33358_3328.fna
+Pa_ATCC_33359_3329.fna
+Pa_ATCC_33360_3330.fna
+Pa_ATCC_43731_3332.fna
+Pa_ATCC_43732_3332.fna
+
+I don't think the circos error matters as its only todo with plot drawing, weird theres no mention in the other files in the logs
+Also weird all the log files keep spamming "Pa_PAO1_107.gff3 already complete"
+~ there is an error in the command which finds all the files to be run on $(find ../data/oriented_genomes/ -type f -name *.fasta). When the alignment is done with mauve contig aligner it copies Pa_PAO1_107.fasta into the alignment directory. The command has found it many times. This also means when the files are cut up for the array many aren't included and not run on.  
+~~ changed to find ../data/oriented_genomes/ -maxdepth 2 -type f  -name *.fasta
+~~~ finds 484 genomes now, the expected number
+
+Resubmitted bakta.slurm
+~ find ../data/bakta/ -type d -name "*ATCC*" gave 25 this time
+../data/bakta/Pa_ATCC_15692_4007
+../data/bakta/Pa_ATCC_27853_3989
+../data/bakta/Pa_ATCC_27853_9518
+../data/bakta/Pa_ATCC_BAA_2108_17048
+../data/bakta/Pa_ATCC_BAA_2114_17047
+../data/bakta/Pa_ATCC_33349_3310
+../data/bakta/Pa_ATCC_33350_3311
+../data/bakta/Pa_ATCC_33351_3313
+../data/bakta/Pa_ATCC_33352_3314
+../data/bakta/Pa_ATCC_33354_3318
+../data/bakta/Pa_ATCC_33356_3321
+../data/bakta/Pa_ATCC_33357_3322
+../data/bakta/Pa_ATCC_33348_3312
+../data/bakta/Pa_ATCC_33353_3319
+../data/bakta/Pa_ATCC_33355_3320
+../data/bakta/Pa_ATCC_33358_3328
+../data/bakta/Pa_ATCC_33359_3329
+../data/bakta/Pa_ATCC_33360_3330
+../data/bakta/Pa_ATCC_33361_3323
+../data/bakta/Pa_ATCC_33362_3324
+../data/bakta/Pa_ATCC_33363_3326
+../data/bakta/Pa_ATCC_33364_3326
+../data/bakta/Pa_ATCC_43390_3327
+../data/bakta/Pa_ATCC_43731_3332
+../data/bakta/Pa_ATCC_43732_3332
+
+
+Now bakta is sorted want to resubmit OrthoFinder need to also fix the file limit issue
+~ ulimit -Sn shows 1024 again
+
+deleted old orthofinder output
+
+resubmitted orthofinder.slurm
+~ compiling hypothetical and known proteins together showed
+cat: ../data/bakta/Pa_ATCC_33348_3312/Pa_ATCC_33348_3312.hypotheticals.faa: No such file or directory
+cat: ../data/bakta/Pa_ATCC_33350_3311/Pa_ATCC_33350_3311.hypotheticals.faa: No such file or directory
+cat: ../data/bakta/Pa_ATCC_33352_3314/Pa_ATCC_33352_3314.hypotheticals.faa: No such file or directory
+cat: ../data/bakta/Pa_ATCC_33353_3319/Pa_ATCC_33353_3319.hypotheticals.faa: No such file or directory
+cat: ../data/bakta/Pa_ATCC_33354_3318/Pa_ATCC_33354_3318.hypotheticals.faa: No such file or directory
+cat: ../data/bakta/Pa_ATCC_33356_3321/Pa_ATCC_33356_3321.hypotheticals.faa: No such file or directory
+cat: ../data/bakta/Pa_ATCC_33357_3322/Pa_ATCC_33357_3322.hypotheticals.faa: No such file or directory
+~ deleted directory for each of these added --skip-plot to bakta.slurm and resubmitted 
+~ also showed "ulimit: open files: cannot modify limit: Operation not permitted"
+~~ using salloc it appears that ulimit -n 10000 is the max I can do
+
+submitted orthofinder with sbatch -d afterok:6750993 orthofinder.slurm
+
+20241112
+When trying to include the IATS strains found 2 errors, 2 bacteria codes are duplicated
+             bacteria bacteria_code
+72 Pa_ATCC_33363_3326          3326
+73 Pa_ATCC_33364_3326          3326
+75 Pa_ATCC_43731_3332          3332
+76 Pa_ATCC_43732_3332          3332
+
+Pa_ATCC_33363_3326 should be Pa_ATCC_33363_3325
+Pa_ATCC_43731_3332 should be Pa_ATCC_43731_3331
+
+Corrected names of the genome fasta files on faraday
+Corrected reoriented file output and folder from Pa_ATCC_33363_3326 to Pa_ATCC_33363_3325
+Corrected reoriented file output and folder from Pa_ATCC_43731_3332 to Pa_ATCC_43731_3331
+
+Deleted bakta output directories for both
+Re-submitted bakta.slurm
+~ job 20 contained both Pa_ATCC_33363_3325 and Pa_ATCC_43731_3331 as expected
+~ jobs 2-19 all did not run as their inputs were already completed
+~ job 1 ran, but gave no output as to what it was doing, bit weird
+~~ didn't even output "484 files found", which all jobs should do!
+
+Look like some loci have not been assigned an orthogroup
+For example 6590_06070
+It is in Orthogroups.txt and Orthogroups_UnassignedGenes.tsv, but not Orthogroups.tsv
+
+NOTE Orthofinder manual says From version 2.4.0 onwards OrthoFinder infers HOGs, orthogroups at each hierarchical level (i.e. at each node in the species tree) by analysing the rooted gene trees. This is a far more accurate orthogroup inference method than the gene similarity/graph based approach used by all other methods and used previously by OrthoFinder (the deprecated Orthogroups/Orthogroups.tsv file). According to the Orthobench benchmarks, these new orthogroups are 12% more accurate than the OrthoFinder 2 orthogroups (Orthogroups/Orthogroups.tsv). The accuracy can be increased still further (20% more accurate on Orthobench) by including outgroup species, which help with the interpretation of the rooted gene trees.
+~ I am currently using the "old outdated method"
+
+Whilst exploring genome annotation in my siderophore_region_analysis R script, I found that some loci are duplicated in my orthogroups file.
+~ It appears to be that when bakta annotes the genome it outputs all proteins in foo.faa, as wel as hypotheticals in foo.hypotheticals.faa. Therefore if these are combined then all the hypotheticals will be duplicated!
+
+Changed orthofinder script to no longer include hypotheticals.faa in analysis, hopefully this will also get a big speedup! 
+~ in doing so accidentally deleted all bakta outputs.. 
+
+Resubmitted bakta.slurm
+Resubmitted orthofinder.slurm
+
+20241120
+after 3 days finished due to time out at 
+
+Calculating gene distances
+--------------------------
+2024-11-14 12:23:08 : Done
+2024-11-14 12:23:20 : Done 0 of 11776
+2024-11-14 12:32:22 : Done 1000 of 11776
+2024-11-14 13:04:50 : Done 2000 of 11776
+2024-11-14 13:44:53 : Done 3000 of 11776
+2024-11-14 14:29:17 : Done 4000 of 11776
+2024-11-14 14:54:21 : Done 5000 of 11776
+2024-11-14 15:00:59 : Done 6000 of 11776
+2024-11-14 15:01:07 : Done 7000 of 11776
+2024-11-14 15:01:11 : Done 8000 of 11776
+2024-11-14 15:01:12 : Done 9000 of 11776
+2024-11-14 15:01:13 : Done 10000 of 11776
+2024-11-14 15:01:14 : Done 11000 of 11776
+
+Resubmitted with -fg option to resume at the gene distances stage
+
+Zabbix shows:
+USER         PID STIME     ELAPSED     TIME %CPU %MEM    VSZ PSR COMMAND
+jgh8      613411 15:21    01:01:34 00:00:00  0.0  0.0  12940  12 /bin/bash /var/spool/slurmd/job6813515/slurm_script
+jgh8      613422 15:21    01:01:33 00:00:00  0.0  0.0 140164  80 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      613423 15:21    01:01:33 00:00:00  0.0  0.0      0  35 [fastme] <defunct>
+jgh8      613420 15:21    01:01:34 00:06:23 10.3  2.1 17378728 4 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+
+
+Now at 16:46:09 we have:
+USER         PID STIME     ELAPSED     TIME %CPU %MEM    VSZ PSR COMMAND
+jgh8      613411 15:21    01:24:34 00:00:00  0.0  0.0  12940  12 /bin/bash /var/spool/slurmd/job6813515/slurm_script
+jgh8      613422 15:21    01:24:33 00:00:00  0.0  0.0 141188  80 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      613423 15:21    01:24:33 00:00:00  0.0  0.0      0  35 [fastme] <defunct>
+jgh8      626896 16:30       15:35 00:00:00  0.0  0.0 141188  53 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626897 16:30       15:35 00:00:00  0.0  0.0 141188  78 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626899 16:30       15:35 00:00:00  0.0  0.0 141188  80 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626901 16:30       15:35 00:00:00  0.0  0.0 141188  95 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626903 16:30       15:35 00:00:00  0.0  0.0 141188  63 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626905 16:30       15:35 00:00:00  0.0  0.0 141188  58 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626907 16:30       15:35 00:00:00  0.0  0.0 141188  56 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626909 16:30       15:35 00:00:00  0.0  0.0 141188  58 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626911 16:30       15:35 00:00:00  0.0  0.0 141188  49 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626913 16:30       15:35 00:00:00  0.0  0.0 141188  57 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626915 16:30       15:35 00:00:00  0.0  0.0 141188  63 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626917 16:30       15:35 00:00:00  0.0  0.0 141188  23 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626920 16:30       15:35 00:00:00  0.0  0.0 141188  42 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626921 16:30       15:35 00:00:00  0.0  0.0 141188  47 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626924 16:30       15:35 00:00:00  0.0  0.0 141188  49 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626926 16:30       15:35 00:00:00  0.0  0.0 141188  37 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626928 16:30       15:35 00:00:00  0.0  0.0 141188  36 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626930 16:30       15:35 00:00:00  0.0  0.0 141188  24 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626932 16:30       15:35 00:00:00  0.0  0.0 141188  10 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626934 16:30       15:35 00:00:00  0.0  0.0 141188  24 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626936 16:30       15:35 00:00:00  0.0  0.0 141188  13 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626938 16:30       15:35 00:00:00  0.0  0.0 141188  19 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626940 16:30       15:35 00:00:00  0.0  0.0 141188  16 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626942 16:30       15:35 00:00:00  0.0  0.0 141188  51 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626944 16:30       15:35 00:00:00  0.0  0.0 141188  37 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626946 16:30       15:35 00:00:00  0.0  0.0 141188  28 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626948 16:30       15:35 00:00:00  0.0  0.0 141188  23 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626950 16:30       15:35 00:00:00  0.0  0.0 141188  42 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626952 16:30       15:35 00:00:00  0.0  0.0 141188  31 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626954 16:30       15:35 00:00:00  0.0  0.0 141188   1 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626956 16:30       15:35 00:00:00  0.0  0.0 141188  45 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626958 16:30       15:35 00:00:00  0.0  0.0 141188  61 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626960 16:30       15:35 00:00:00  0.0  0.0 141188  26 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626962 16:30       15:35 00:00:00  0.0  0.0 141188  44 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626964 16:30       15:35 00:00:00  0.0  0.0 141188  42 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626966 16:30       15:35 00:00:00  0.0  0.0 141188  84 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626968 16:30       15:35 00:00:00  0.0  0.0 141188  26 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626970 16:30       15:35 00:00:00  0.0  0.0 141188  36 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626972 16:30       15:35 00:00:00  0.0  0.0 141188   7 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626974 16:30       15:35 00:00:00  0.0  0.0 141188  39 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626976 16:30       15:35 00:00:00  0.0  0.0 141188  50 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626978 16:30       15:35 00:00:00  0.0  0.0 141188  15 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626980 16:30       15:35 00:00:00  0.0  0.0 141188  29 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626982 16:30       15:35 00:00:00  0.0  0.0 141188  67 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626984 16:30       15:35 00:00:00  0.0  0.0 141188  35 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626986 16:30       15:35 00:00:00  0.0  0.0 141188  54 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626988 16:30       15:35 00:00:00  0.0  0.0 141188  59 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626990 16:30       15:35 00:00:00  0.0  0.0 141188  16 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626992 16:30       15:35 00:00:00  0.0  0.0 141188   7 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626994 16:30       15:35 00:00:00  0.0  0.0 141188   7 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626996 16:30       15:35 00:00:00  0.0  0.0 141188  45 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626998 16:30       15:35 00:00:00  0.0  0.0 141188   7 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627000 16:30       15:35 00:00:00  0.0  0.0 141188  45 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627002 16:30       15:35 00:00:00  0.0  0.0 141188  80 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627004 16:30       15:35 00:00:00  0.0  0.0 141188  18 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627006 16:30       15:35 00:00:00  0.0  0.0 141188  32 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627008 16:30       15:35 00:00:00  0.0  0.0 141188   0 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627010 16:30       15:35 00:00:00  0.0  0.0 141188  51 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627012 16:30       15:35 00:00:00  0.0  0.0 141188  26 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627014 16:30       15:35 00:00:00  0.0  0.0 141188  88 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627016 16:30       15:35 00:00:00  0.0  0.0 141188  31 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627018 16:30       15:35 00:00:00  0.0  0.0 141188  22 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627020 16:30       15:35 00:00:00  0.0  0.0 141188  63 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627022 16:30       15:35 00:00:00  0.0  0.0 141188  73 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627024 16:30       15:35 00:00:00  0.0  0.0 141188  18 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627026 16:30       15:35 00:00:00  0.0  0.0 141188  44 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627028 16:30       15:35 00:00:00  0.0  0.0 141188  35 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627030 16:30       15:35 00:00:00  0.0  0.0 141188  28 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627033 16:30       15:35 00:00:00  0.0  0.0 141188  59 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627035 16:30       15:35 00:00:00  0.0  0.0 141188  60 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627037 16:30       15:35 00:00:00  0.0  0.0 141188  65 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627039 16:30       15:35 00:00:00  0.0  0.0 141188   5 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627041 16:30       15:35 00:00:00  0.0  0.0 141188   4 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627043 16:30       15:35 00:00:00  0.0  0.0 141188  80 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627045 16:30       15:35 00:00:00  0.0  0.0 141188  12 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627047 16:30       15:35 00:00:00  0.0  0.0 141188  29 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627050 16:30       15:35 00:00:00  0.0  0.0 141188  63 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627053 16:30       15:35 00:00:00  0.0  0.0 141188  72 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627055 16:30       15:35 00:00:00  0.0  0.0 141188  87 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627057 16:30       15:35 00:00:00  0.0  0.0 141188  24 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627059 16:30       15:35 00:00:00  0.0  0.0 141188  50 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627061 16:30       15:35 00:00:00  0.0  0.0 141188  43 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627063 16:30       15:35 00:00:00  0.0  0.0 141188  57 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627065 16:30       15:35 00:00:00  0.0  0.0 141188  59 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627067 16:30       15:35 00:00:00  0.0  0.0 141188  17 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627069 16:30       15:35 00:00:00  0.0  0.0 141188  73 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627071 16:30       15:35 00:00:00  0.0  0.0 141188   7 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627073 16:30       15:35 00:00:00  0.0  0.0 141188  43 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627075 16:30       15:35 00:00:00  0.0  0.0 141188   8 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627077 16:30       15:35 00:00:00  0.0  0.0 141188  61 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627079 16:30       15:35 00:00:00  0.0  0.0 141188  46 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627081 16:30       15:35 00:00:00  0.0  0.0 141188  85 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627083 16:30       15:35 00:00:00  0.0  0.0 141188  63 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627085 16:30       15:35 00:00:00  0.0  0.0 141188  40 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627087 16:30       15:35 00:00:00  0.0  0.0 141188  73 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627089 16:30       15:35 00:00:00  0.0  0.0 141188  30 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      613420 15:21    01:24:34 00:13:30 15.9  0.2 1823128  5 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      631813 16:46       00:01 00:00:00 62.0  0.0  42272  80 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001392.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001392_tree_id.txt -N -w O -s
+jgh8      631782 16:45       00:22 00:00:21 97.0  0.0  19792  87 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001387.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001387_tree_id.txt -N -w O -s
+jgh8      631732 16:45       00:48 00:00:47 98.2  0.0  19792  27 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001364.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001364_tree_id.txt -N -w O -s
+jgh8      631780 16:45       00:26 00:00:25 98.6  0.0  19792  93 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001386.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001386_tree_id.txt -N -w O -s
+jgh8      631456 16:44       01:48 00:01:46 98.9  0.0  19792  62 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001329.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001329_tree_id.txt -N -w O -s
+jgh8      631689 16:45       01:01 00:01:00 98.9  0.0  19792  85 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001351.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001351_tree_id.txt -N -w O -s
+jgh8      631711 16:45       00:58 00:00:57 99.1  0.0  19792  65 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001356.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001356_tree_id.txt -N -w O -s
+jgh8      631768 16:45       00:32 00:00:31 99.1  0.0  19792  58 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001379.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001379_tree_id.txt -N -w O -s
+jgh8      631410 16:43       02:40 00:02:38 99.2  0.0  19792  91 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001313.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001313_tree_id.txt -N -w O -s
+jgh8      631425 16:43       02:21 00:02:19 99.2  0.0  19792  42 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001322.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001322_tree_id.txt -N -w O -s
+jgh8      631739 16:45       00:43 00:00:42 99.2  0.0  19792  84 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001369.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001369_tree_id.txt -N -w O -s
+jgh8      631788 16:45       00:11 00:00:10 99.2  0.0  19792  28 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001391.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001391_tree_id.txt -N -w O -s
+jgh8      630195 16:39       07:05 00:07:02 99.3  0.0  19796  46 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001097.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001097_tree_id.txt -N -w O -s
+jgh8      631342 16:42       03:22 00:03:20 99.3  0.0  19796  73 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001276.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001276_tree_id.txt -N -w O -s
+jgh8      631379 16:43       02:59 00:02:57 99.3  0.0  19792  48 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001298.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001298_tree_id.txt -N -w O -s
+jgh8      631399 16:43       02:51 00:02:49 99.3  0.0  19792  95 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001307.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001307_tree_id.txt -N -w O -s
+jgh8      631401 16:43       02:50 00:02:48 99.3  0.0  19792  40 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001309.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001309_tree_id.txt -N -w O -s
+jgh8      631404 16:43       02:49 00:02:47 99.3  0.0  19792   4 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001310.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001310_tree_id.txt -N -w O -s
+jgh8      631417 16:43       02:27 00:02:26 99.3  0.0  19792  16 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001317.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001317_tree_id.txt -N -w O -s
+jgh8      631468 16:44       01:26 00:01:25 99.3  0.0  19792  32 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001336.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001336_tree_id.txt -N -w O -s
+jgh8      631684 16:45       01:05 00:01:04 99.3  0.0  19792  55 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001347.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001347_tree_id.txt -N -w O -s
+jgh8      631786 16:45       00:19 00:00:18 99.3  0.0  19792  35 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001390.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001390_tree_id.txt -N -w O -s
+jgh8      627461 16:30       15:19 00:15:14 99.4  0.0  19876  25 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000397.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000397_tree_id.txt -N -w O -s
+jgh8      627714 16:31       14:31 00:14:26 99.4  0.0  19884  45 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000598.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000598_tree_id.txt -N -w O -s
+jgh8      628696 16:32       13:18 00:13:13 99.4  0.0  19796  64 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000711.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000711_tree_id.txt -N -w O -s
+jgh8      628704 16:32       13:12 00:13:07 99.4  0.0  19796   0 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000715.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000715_tree_id.txt -N -w O -s
+jgh8      628946 16:34       11:26 00:11:22 99.4  0.0  19796  50 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000864.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000864_tree_id.txt -N -w O -s
+jgh8      630183 16:39       07:09 00:07:06 99.4  0.0  19796  86 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001092.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001092_tree_id.txt -N -w O -s
+jgh8      630351 16:40       05:15 00:05:13 99.4  0.0  19796  66 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001178.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001178_tree_id.txt -N -w O -s
+jgh8      631236 16:41       04:18 00:04:16 99.4  0.0  19796  83 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001216.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001216_tree_id.txt -N -w O -s
+jgh8      631245 16:41       04:13 00:04:11 99.4  0.0  19796  70 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001223.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001223_tree_id.txt -N -w O -s
+jgh8      631424 16:43       02:21 00:02:20 99.4  0.0  42272  31 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001321.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001321_tree_id.txt -N -w O -s
+jgh8      631767 16:45       00:32 00:00:31 99.4  0.0  19792  11 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001378.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001378_tree_id.txt -N -w O -s
+jgh8      626953 16:30       15:35 00:15:30 99.5  0.0  30968  94 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000027.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000027_tree_id.txt -N -w O -s
+jgh8      626959 16:30       15:35 00:15:30 99.5  0.0  30720   2 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000030.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000030_tree_id.txt -N -w O -s
+jgh8      626963 16:30       15:35 00:15:30 99.5  0.0  30624  24 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000032.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000032_tree_id.txt -N -w O -s
+jgh8      627465 16:30       15:18 00:15:14 99.5  0.0  19876  92 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000399.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000399_tree_id.txt -N -w O -s
+jgh8      627562 16:31       15:05 00:15:00 99.5  0.0  19884  20 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000481.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000481_tree_id.txt -N -w O -s
+jgh8      627591 16:31       14:57 00:14:53 99.5  0.0  19884  43 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000503.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000503_tree_id.txt -N -w O -s
+jgh8      627597 16:31       14:56 00:14:52 99.5  0.0  19884  60 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000509.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000509_tree_id.txt -N -w O -s
+jgh8      627652 16:31       14:48 00:14:44 99.5  0.0  19884  38 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000547.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000547_tree_id.txt -N -w O -s
+jgh8      627666 16:31       14:45 00:14:41 99.5  0.0  19884  76 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000559.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000559_tree_id.txt -N -w O -s
+jgh8      628595 16:32       14:05 00:14:01 99.5  0.0  19884  59 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000644.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000644_tree_id.txt -N -w O -s
+jgh8      628601 16:32       14:02 00:13:58 99.5  0.0  19884  41 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000649.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000649_tree_id.txt -N -w O -s
+jgh8      628688 16:32       13:19 00:13:15 99.5  0.0  19796  44 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000704.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000704_tree_id.txt -N -w O -s
+jgh8      628695 16:32       13:18 00:13:14 99.5  0.0  19796  79 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000710.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000710_tree_id.txt -N -w O -s
+jgh8      628697 16:32       13:17 00:13:13 99.5  0.0  19796  49 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000712.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000712_tree_id.txt -N -w O -s
+jgh8      628705 16:32       13:12 00:13:08 99.5  0.0  19796  29 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000716.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000716_tree_id.txt -N -w O -s
+jgh8      628728 16:33       12:57 00:12:53 99.5  0.0  19796  78 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000726.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000726_tree_id.txt -N -w O -s
+jgh8      628789 16:33       12:37 00:12:33 99.5  0.0  19796   5 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000767.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000767_tree_id.txt -N -w O -s
+jgh8      628799 16:33       12:30 00:12:26 99.5  0.0  19796  89 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000773.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000773_tree_id.txt -N -w O -s
+jgh8      628803 16:33       12:29 00:12:25 99.5  0.0  19796  33 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000775.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000775_tree_id.txt -N -w O -s
+jgh8      628804 16:33       12:28 00:12:24 99.5  0.0  19796   6 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000776.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000776_tree_id.txt -N -w O -s
+jgh8      628847 16:34       12:07 00:12:03 99.5  0.0  19796  63 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000804.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000804_tree_id.txt -N -w O -s
+jgh8      628865 16:34       12:01 00:11:58 99.5  0.0  19796  30 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000815.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000815_tree_id.txt -N -w O -s
+jgh8      628955 16:34       11:17 00:11:14 99.5  0.0  19796  88 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000869.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000869_tree_id.txt -N -w O -s
+jgh8      630137 16:38       07:42 00:07:39 99.5  0.0  19796  75 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001062.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001062_tree_id.txt -N -w O -s
+jgh8      630153 16:38       07:34 00:07:31 99.5  0.0  19796   1 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001072.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001072_tree_id.txt -N -w O -s
+jgh8      630231 16:39       06:46 00:06:44 99.5  0.0  19796  51 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001112.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001112_tree_id.txt -N -w O -s
+jgh8      630280 16:40       06:05 00:06:03 99.5  0.0  19796  54 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001141.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001141_tree_id.txt -N -w O -s
+jgh8      630356 16:41       05:09 00:05:07 99.5  0.0  19796  81 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001180.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001180_tree_id.txt -N -w O -s
+jgh8      630618 16:41       05:03 00:05:01 99.5  0.0  19796  71 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001190.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001190_tree_id.txt -N -w O -s
+jgh8      631183 16:41       05:00 00:04:58 99.5  0.0  19796  82 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001194.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001194_tree_id.txt -N -w O -s
+jgh8      631710 16:45       00:58 00:00:57 99.5  0.0  19792  18 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001355.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001355_tree_id.txt -N -w O -s
+jgh8      628693 16:32       13:18 00:13:14 99.6  0.0  19796  34 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000708.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000708_tree_id.txt -N -w O -s
+jgh8      628909 16:34       11:46 00:11:43 99.6  0.0  19796  69 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000839.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000839_tree_id.txt -N -w O -s
+jgh8      629121 16:36       09:53 00:09:50 99.6  0.0  19796  47 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000950.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000950_tree_id.txt -N -w O -s
+jgh8      629134 16:36       09:48 00:09:45 99.6  0.0  19796  14 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000956.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000956_tree_id.txt -N -w O -s
+jgh8      629143 16:36       09:40 00:09:38 99.6  0.0  19796  17 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000962.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000962_tree_id.txt -N -w O -s
+jgh8      629150 16:36       09:35 00:09:32 99.6  0.0  19796  10 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000967.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000967_tree_id.txt -N -w O -s
+jgh8      629983 16:36       09:17 00:09:15 99.6  0.0  19796  21 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0000979.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0000979_tree_id.txt -N -w O -s
+jgh8      630042 16:37       08:27 00:08:24 99.6  0.0  19796  90 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001005.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001005_tree_id.txt -N -w O -s
+jgh8      630076 16:38       08:07 00:08:05 99.6  0.0  19796  22 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001028.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001028_tree_id.txt -N -w O -s
+jgh8      630104 16:38       07:57 00:07:55 99.6  0.0  19796  19 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001042.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001042_tree_id.txt -N -w O -s
+jgh8      630150 16:38       07:37 00:07:35 99.6  0.0  19796  26 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001070.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001070_tree_id.txt -N -w O -s
+jgh8      630318 16:40       05:40 00:05:38 99.6  0.0  19796  67 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001155.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001155_tree_id.txt -N -w O -s
+jgh8      630322 16:40       05:35 00:05:33 99.6  0.0  19796   3 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001158.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001158_tree_id.txt -N -w O -s
+jgh8      631309 16:42       03:41 00:03:40 99.6  0.0  19796  56 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001255.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001255_tree_id.txt -N -w O -s
+jgh8      631321 16:42       03:35 00:03:34 99.6  0.0  19796  72 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001263.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001263_tree_id.txt -N -w O -s
+jgh8      631355 16:42       03:17 00:03:16 99.6  0.0  19792   7 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001287.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001287_tree_id.txt -N -w O -s
+jgh8      631365 16:43       03:08 00:03:07 99.6  0.0  19792  39 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001295.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001295_tree_id.txt -N -w O -s
+jgh8      630562 16:41       05:04 00:05:03 99.7  0.0  19796  61 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001186.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001186_tree_id.txt -N -w O -s
+jgh8      631268 16:42       04:03 00:04:02 99.7  0.0  19796  13 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001238.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001238_tree_id.txt -N -w O -s
+jgh8      631288 16:42       03:54 00:03:53 99.7  0.0  19796  57 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001244.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001244_tree_id.txt -N -w O -s
+jgh8      631301 16:42       03:44 00:03:43 99.7  0.0  19796  68 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001249.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001249_tree_id.txt -N -w O -s
+jgh8      631323 16:42       03:32 00:03:31 99.7  0.0  19796  74 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001264.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001264_tree_id.txt -N -w O -s
+jgh8      631440 16:44       01:59 00:01:58 99.7  0.0  19792  77 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001326.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001326_tree_id.txt -N -w O -s
+jgh8      631737 16:45       00:46 00:00:45 99.7  0.0  19792   8 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001368.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001368_tree_id.txt -N -w O -s
+jgh8      631748 16:45       00:36 00:00:35 99.7  0.0  19792  12 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001375.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001375_tree_id.txt -N -w O -s
+jgh8      631400 16:43       02:50 00:02:49 99.8  0.0  19792  15 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001308.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001308_tree_id.txt -N -w O -s
+jgh8      631463 16:44       01:34 00:01:33 99.8  0.0  19792  23 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001334.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001334_tree_id.txt -N -w O -s
+jgh8      631717 16:45       00:55 00:00:55  100  0.0  19792  52 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001360.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001360_tree_id.txt -N -w O -s
+jgh8      631775 16:45       00:28 00:00:28  100  0.0  19792  36 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001383.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001383_tree_id.txt -N -w O -s
+jgh8      631733 16:45       00:47 00:00:47  100  0.0  42272  53 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001365.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001365_tree_id.txt -N -w O -s
+jgh8      631785 16:45       00:19 00:00:19  100  0.0  19792   9 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001389.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001389_tree_id.txt -N -w O -s
+jgh8      631777 16:45       00:26 00:00:26  100  0.0  19792  37 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001385.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001385_tree_id.txt -N -w O -s
+
+
+Appears to have spawned lots of jobs as expected! 
+Orthofinder.out shows
+
+Calculating gene distances
+--------------------------
+2024-11-20 16:30:23 : Done
+2024-11-20 16:30:34 : Done 0 of 11776
+2024-11-20 16:39:04 : Done 1000 of 11776
+
+Perhaps it just needed to do some setup?
+
+20241121
+Today were at this stage:
+
+Analysing Orthogroups
+=====================
+
+Calculating gene distances
+--------------------------
+2024-11-20 16:30:23 : Done
+2024-11-20 16:30:34 : Done 0 of 11776
+2024-11-20 16:39:04 : Done 1000 of 11776
+2024-11-20 17:07:23 : Done 2000 of 11776
+2024-11-20 17:49:09 : Done 3000 of 11776
+2024-11-20 18:30:20 : Done 4000 of 11776
+2024-11-20 18:55:57 : Done 5000 of 11776
+2024-11-20 19:02:42 : Done 6000 of 11776
+2024-11-20 19:02:50 : Done 7000 of 11776
+2024-11-20 19:02:53 : Done 8000 of 11776
+2024-11-20 19:02:54 : Done 9000 of 11776
+2024-11-20 19:02:55 : Done 10000 of 11776
+2024-11-20 19:02:55 : Done 11000 of 11776
+
+Zabbix shows: 
+USER         PID STIME     ELAPSED     TIME %CPU %MEM    VSZ PSR COMMAND
+jgh8      613411 Nov20    19:45:33 00:00:00  0.0  0.0  12940  12 /bin/bash /var/spool/slurmd/job6813515/slurm_script
+jgh8      613422 Nov20    19:45:32 00:00:00  0.0  0.0 141188  82 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      613423 Nov20    19:45:32 00:00:00  0.0  0.0      0  35 [fastme] <defunct>
+jgh8      626907 Nov20    18:36:34 00:00:00  0.0  0.0 141188  34 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626909 Nov20    18:36:34 00:00:00  0.0  0.0      0  50 [python3] <defunct>
+jgh8      626911 Nov20    18:36:34 00:00:00  0.0  0.0      0  24 [python3] <defunct>
+jgh8      626913 Nov20    18:36:34 00:00:00  0.0  0.0      0  82 [python3] <defunct>
+jgh8      626915 Nov20    18:36:34 00:00:00  0.0  0.0 141188  45 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626917 Nov20    18:36:34 00:00:00  0.0  0.0 141188  64 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626920 Nov20    18:36:34 00:00:00  0.0  0.0      0  16 [python3] <defunct>
+jgh8      626921 Nov20    18:36:34 00:00:00  0.0  0.0      0  59 [python3] <defunct>
+jgh8      626924 Nov20    18:36:34 00:00:00  0.0  0.0      0  53 [python3] <defunct>
+jgh8      626926 Nov20    18:36:34 00:00:00  0.0  0.0      0  38 [python3] <defunct>
+jgh8      626928 Nov20    18:36:34 00:00:00  0.0  0.0      0  15 [python3] <defunct>
+jgh8      626930 Nov20    18:36:34 00:00:00  0.0  0.0 141188  17 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626932 Nov20    18:36:34 00:00:00  0.0  0.0      0  26 [python3] <defunct>
+jgh8      626934 Nov20    18:36:34 00:00:00  0.0  0.0 141188  18 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626936 Nov20    18:36:34 00:00:00  0.0  0.0      0  76 [python3] <defunct>
+jgh8      626938 Nov20    18:36:34 00:00:00  0.0  0.0      0  69 [python3] <defunct>
+jgh8      626940 Nov20    18:36:34 00:00:00  0.0  0.0      0   0 [python3] <defunct>
+jgh8      626942 Nov20    18:36:34 00:00:00  0.0  0.0      0   6 [python3] <defunct>
+jgh8      626944 Nov20    18:36:34 00:00:00  0.0  0.0      0  72 [python3] <defunct>
+jgh8      626946 Nov20    18:36:34 00:00:00  0.0  0.0      0  40 [python3] <defunct>
+jgh8      626948 Nov20    18:36:34 00:00:00  0.0  0.0      0  55 [python3] <defunct>
+jgh8      626950 Nov20    18:36:34 00:00:00  0.0  0.0      0  87 [python3] <defunct>
+jgh8      626952 Nov20    18:36:34 00:00:00  0.0  0.0      0  94 [python3] <defunct>
+jgh8      626954 Nov20    18:36:34 00:00:00  0.0  0.0      0  92 [python3] <defunct>
+jgh8      626956 Nov20    18:36:34 00:00:00  0.0  0.0      0  57 [python3] <defunct>
+jgh8      626958 Nov20    18:36:34 00:00:00  0.0  0.0      0  58 [python3] <defunct>
+jgh8      626960 Nov20    18:36:34 00:00:00  0.0  0.0 141188  16 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626962 Nov20    18:36:34 00:00:00  0.0  0.0      0  55 [python3] <defunct>
+jgh8      626964 Nov20    18:36:34 00:00:00  0.0  0.0      0  72 [python3] <defunct>
+jgh8      626966 Nov20    18:36:34 00:00:00  0.0  0.0 141188   1 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626968 Nov20    18:36:34 00:00:00  0.0  0.0      0  24 [python3] <defunct>
+jgh8      626970 Nov20    18:36:34 00:00:00  0.0  0.0      0  42 [python3] <defunct>
+jgh8      626972 Nov20    18:36:34 00:00:00  0.0  0.0      0   0 [python3] <defunct>
+jgh8      626974 Nov20    18:36:34 00:00:00  0.0  0.0 141188  48 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626976 Nov20    18:36:34 00:00:00  0.0  0.0      0  29 [python3] <defunct>
+jgh8      626978 Nov20    18:36:34 00:00:00  0.0  0.0      0  40 [python3] <defunct>
+jgh8      626980 Nov20    18:36:34 00:00:00  0.0  0.0      0  48 [python3] <defunct>
+jgh8      626982 Nov20    18:36:34 00:00:00  0.0  0.0      0  57 [python3] <defunct>
+jgh8      626984 Nov20    18:36:34 00:00:00  0.0  0.0      0  55 [python3] <defunct>
+jgh8      626986 Nov20    18:36:34 00:00:00  0.0  0.0      0  20 [python3] <defunct>
+jgh8      626988 Nov20    18:36:34 00:00:00  0.0  0.0      0  58 [python3] <defunct>
+jgh8      626990 Nov20    18:36:34 00:00:00  0.0  0.0      0  42 [python3] <defunct>
+jgh8      626992 Nov20    18:36:34 00:00:00  0.0  0.0 141188   8 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626994 Nov20    18:36:34 00:00:00  0.0  0.0      0   0 [python3] <defunct>
+jgh8      626996 Nov20    18:36:34 00:00:00  0.0  0.0 141188  76 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      626998 Nov20    18:36:34 00:00:00  0.0  0.0 141188  44 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627000 Nov20    18:36:34 00:00:00  0.0  0.0      0  12 [python3] <defunct>
+jgh8      627002 Nov20    18:36:34 00:00:00  0.0  0.0      0  16 [python3] <defunct>
+jgh8      627004 Nov20    18:36:34 00:00:00  0.0  0.0      0  22 [python3] <defunct>
+jgh8      627006 Nov20    18:36:34 00:00:00  0.0  0.0 141188  52 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627008 Nov20    18:36:34 00:00:00  0.0  0.0      0  20 [python3] <defunct>
+jgh8      627010 Nov20    18:36:34 00:00:00  0.0  0.0      0  23 [python3] <defunct>
+jgh8      627012 Nov20    18:36:34 00:00:00  0.0  0.0      0  27 [python3] <defunct>
+jgh8      627014 Nov20    18:36:34 00:00:00  0.0  0.0      0  77 [python3] <defunct>
+jgh8      627016 Nov20    18:36:34 00:00:00  0.0  0.0      0  35 [python3] <defunct>
+jgh8      627018 Nov20    18:36:34 00:00:00  0.0  0.0      0  82 [python3] <defunct>
+jgh8      627020 Nov20    18:36:34 00:00:00  0.0  0.0      0  54 [python3] <defunct>
+jgh8      627022 Nov20    18:36:34 00:00:00  0.0  0.0      0  88 [python3] <defunct>
+jgh8      627024 Nov20    18:36:34 00:00:00  0.0  0.0      0  88 [python3] <defunct>
+jgh8      627026 Nov20    18:36:34 00:00:00  0.0  0.0      0  17 [python3] <defunct>
+jgh8      627028 Nov20    18:36:34 00:00:00  0.0  0.0      0  57 [python3] <defunct>
+jgh8      627030 Nov20    18:36:34 00:00:00  0.0  0.0      0  76 [python3] <defunct>
+jgh8      627033 Nov20    18:36:34 00:00:00  0.0  0.0      0  10 [python3] <defunct>
+jgh8      627035 Nov20    18:36:34 00:00:00  0.0  0.0 141188  64 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627037 Nov20    18:36:34 00:00:00  0.0  0.0      0   5 [python3] <defunct>
+jgh8      627039 Nov20    18:36:34 00:00:00  0.0  0.0      0  26 [python3] <defunct>
+jgh8      627041 Nov20    18:36:34 00:00:00  0.0  0.0      0  40 [python3] <defunct>
+jgh8      627043 Nov20    18:36:34 00:00:00  0.0  0.0      0  23 [python3] <defunct>
+jgh8      627045 Nov20    18:36:34 00:00:00  0.0  0.0      0  24 [python3] <defunct>
+jgh8      627047 Nov20    18:36:34 00:00:00  0.0  0.0      0  57 [python3] <defunct>
+jgh8      627050 Nov20    18:36:34 00:00:00  0.0  0.0 141188  30 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627053 Nov20    18:36:34 00:00:00  0.0  0.0      0  94 [python3] <defunct>
+jgh8      627055 Nov20    18:36:34 00:00:00  0.0  0.0      0  55 [python3] <defunct>
+jgh8      627057 Nov20    18:36:34 00:00:00  0.0  0.0      0  31 [python3] <defunct>
+jgh8      627059 Nov20    18:36:34 00:00:00  0.0  0.0      0  20 [python3] <defunct>
+jgh8      627061 Nov20    18:36:34 00:00:00  0.0  0.0 141188  17 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627063 Nov20    18:36:34 00:00:00  0.0  0.0      0  27 [python3] <defunct>
+jgh8      627065 Nov20    18:36:34 00:00:00  0.0  0.0      0  20 [python3] <defunct>
+jgh8      627067 Nov20    18:36:34 00:00:00  0.0  0.0      0  90 [python3] <defunct>
+jgh8      627069 Nov20    18:36:34 00:00:00  0.0  0.0      0  81 [python3] <defunct>
+jgh8      627071 Nov20    18:36:34 00:00:00  0.0  0.0 141188  30 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      627073 Nov20    18:36:34 00:00:00  0.0  0.0      0   8 [python3] <defunct>
+jgh8      627075 Nov20    18:36:34 00:00:00  0.0  0.0      0  21 [python3] <defunct>
+jgh8      627077 Nov20    18:36:34 00:00:00  0.0  0.0      0  30 [python3] <defunct>
+jgh8      627079 Nov20    18:36:34 00:00:00  0.0  0.0      0  94 [python3] <defunct>
+jgh8      627081 Nov20    18:36:34 00:00:00  0.0  0.0      0  53 [python3] <defunct>
+jgh8      627083 Nov20    18:36:34 00:00:00  0.0  0.0      0  87 [python3] <defunct>
+jgh8      627085 Nov20    18:36:34 00:00:00  0.0  0.0      0  35 [python3] <defunct>
+jgh8      627087 Nov20    18:36:34 00:00:00  0.0  0.0      0  53 [python3] <defunct>
+jgh8      627089 Nov20    18:36:34 00:00:00  0.0  0.0      0  25 [python3] <defunct>
+jgh8      613420 Nov20    19:45:33 00:13:30  1.1  0.2 1823128  5 python3 /shared/home/jgh8/miniconda3/envs/orthofinder/bin/orthofinder -fg ../data/orthofinder/20241113_run/Results_Nov13/ -a 12 -t 96
+jgh8      632064 Nov20    18:20:53 18:18:40 99.7  0.0  19792  36 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001402.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001402_tree_id.txt -N -w O -s
+jgh8      632921 Nov20    18:17:42 18:15:29 99.7  0.0  19792  38 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001529.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001529_tree_id.txt -N -w O -s
+jgh8      657553 Nov20    16:33:51 16:31:38 99.7  0.0  19780  78 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0004167.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0004167_tree_id.txt -N -w O -s
+jgh8      632887 Nov20    18:18:06 18:16:09 99.8  0.0  19792  68 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001520.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001520_tree_id.txt -N -w O -s
+jgh8      632929 Nov20    18:17:15 18:15:18 99.8  0.0  19792  50 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001533.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001533_tree_id.txt -N -w O -s
+jgh8      632956 Nov20    18:16:48 18:14:51 99.8  0.0  19792   3 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001538.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001538_tree_id.txt -N -w O -s
+jgh8      634097 Nov20    18:11:12 18:09:07 99.8  0.0  19792  19 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0001682.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0001682_tree_id.txt -N -w O -s
+jgh8      646996 Nov20    17:18:57 17:16:58 99.8  0.0  19792  95 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0003072.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0003072_tree_id.txt -N -w O -s
+jgh8      649299 Nov20    17:08:33 17:06:52 99.8  0.0  19792   4 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0003341.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0003341_tree_id.txt -N -w O -s
+jgh8      649339 Nov20    17:07:49 17:05:53 99.8  0.0  19792  93 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0003357.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0003357_tree_id.txt -N -w O -s
+jgh8      650790 Nov20    17:02:35 17:00:58 99.8  0.0  19792  49 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0003455.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0003455_tree_id.txt -N -w O -s
+jgh8      652892 Nov20    16:54:42 16:52:49 99.8  0.0  19780  88 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0003652.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0003652_tree_id.txt -N -w O -s
+jgh8      659911 Nov20    16:23:33 16:21:47 99.8  0.0  19768  80 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0004528.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0004528_tree_id.txt -N -w O -s
+jgh8      664305 Nov20    16:06:39 16:05:14 99.8  0.0  19392  12 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0005405.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0005405_tree_id.txt -N -w O -s
+jgh8      665425 Nov20    16:05:21 16:03:57 99.8  0.0  17772  14 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0005595.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0005595_tree_id.txt -N -w O -s
+jgh8      665433 Nov20    16:05:20 16:03:40 99.8  0.0  17768  72 fastme -i /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Distances/OG0005602.phy -o /shared/home/jgh8/20230208_UKent/20240520_siderophore_prediction/data/orthofinder/20241113_run/Results_Nov13/../Results_Nov20/WorkingDirectory/Trees_ids/OG0005602_tree_id.txt -N -w O -s
+
+So it appears I have 16 proccesses each using one CPU
+On zabbix the node space utilisation is only ~10%, so next time I can probably try increasing the -a option to 96
+
+2041125
+Resubmitted with 7 days runtime and -a option to 96
+
+Ran bakta_summarise.R 
+~ for some reason downloading output keeps hanging?
+
+Re-downloaded orthogroups.tsv
+~ NB that these are the legacy orthogroups as I haven't got orthofinder to actually complete yet
+
+Analysing my data shows that 13897 genes are not in Orthogroups
+~ their orthogroup assignment is simply "NA"
+~ lets use "6590_18930" as an example
+~~ It is in Orthogroups.txt and Orthogroups_UnassignedGenes.tsv as OG0014495
+~ Lets try using Orthogroups.txt instead 
+~ this has got it down to 2635 not in orthogroups
+~~ fixed 6590_18930, but 3618_11715 is missing
+~~~ cluster says it is still in Orthogroups.txt
+~~~ in OG0000000
+~~~ that had been missed from the import as the top row was deleted for some reason
+
+20241204
+Need to work out how many genomes orthofinder can actually cope with
+Lets setup an array job to increment through all the genomes and time how long each one takes 
+
+biosoc2 nodes have 96 cores and 772146
+~ ~8000 memory per core
+
+20241216
+Moved the IATS strains with no assigned siderotype to ":~/20230208_UKent/20240520_siderophore_prediction/raw_data/IATS_sequences/assemblies/no_siderotype" as they should not be included in analysis
+~ compressed with tar -cvf no_pvd_type.tar.gz ./no_pvd_type/ so they are not included in analysis
+
+Deleted old orthofinder analyssi as they are not needed anymore
+~ changed strategy to:
+~~ use all genomes for low-quality orthgroups
+~~ make draft phylogentic tree from these
+~~ select <150 genomes to make core orthorgoups
+~~ assign remainder to this
+
+Deleted IATS strains with no assigned siderotype from bakta folder
+~ this now contains 477 folders
+
+Do i have the right number of genomes?
+~ /raw_data/genomes/pgdb_complete_aeruginosa/ contains 464
+~ /raw_data/IATS_sequences/assemblies contains 13
+~ 464+13 = 477 so probably correct
+
+Added -og option to Orthofinder.slurm as I want it to stop after round one of orthogroups inferrence 
+
+20241216
+Orthofinder appears to have given correct outputs in ~22h 
+Now I need to concatenate the single copy orthologs to make a phylogentic tree, seqkit concat looks like the right tool
+~ seqkit concat matches by record, the bit between > and " " in a fasta header
+~ fasta files have header lines like 6590_30805
+~ repleaced _ with " " using sed -i -e 's/_/ /g' *
+~ concatenated with seqkit concat * > ../../../../draft_phylogeny/concateneated_SCOs.faa
+
+In my old anvi'o script I cleaned up alignments with trimal before running 
+~ installed with conda install bioconda::trimal
+
+Made slurm script with both mafft alignment and trimal in it
+~ used automated model selection with both
+~ submitted
